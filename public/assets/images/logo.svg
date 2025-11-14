@@ -1,0 +1,38 @@
+<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Árbol/Hoja izquierda -->
+  <g id="tree">
+    <!-- Tronco -->
+    <rect x="15" y="45" width="3" height="20" fill="#059669"/>
+    
+    <!-- Ramas principales -->
+    <!-- Rama izquierda superior -->
+    <path d="M 18 45 Q 10 40 8 32" stroke="#059669" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    
+    <!-- Rama derecha superior -->
+    <path d="M 18 45 Q 26 40 28 32" stroke="#059669" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    
+    <!-- Rama izquierda media -->
+    <path d="M 18 48 Q 8 46 5 42" stroke="#059669" stroke-width="2" fill="none" stroke-linecap="round"/>
+    
+    <!-- Rama derecha media -->
+    <path d="M 18 48 Q 28 46 31 42" stroke="#059669" stroke-width="2" fill="none" stroke-linecap="round"/>
+    
+    <!-- Rama izquierda baja -->
+    <path d="M 18 52 Q 10 52 8 50" stroke="#059669" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    
+    <!-- Rama derecha baja -->
+    <path d="M 18 52 Q 26 52 28 50" stroke="#059669" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    
+    <!-- Hojas (círculos pequeños) -->
+    <circle cx="8" cy="30" r="2.5" fill="#10b981"/>
+    <circle cx="28" cy="30" r="2.5" fill="#10b981"/>
+    <circle cx="5" cy="40" r="2" fill="#10b981"/>
+    <circle cx="31" cy="40" r="2" fill="#10b981"/>
+    <circle cx="8" cy="48" r="1.5" fill="#10b981"/>
+    <circle cx="28" cy="48" r="1.5" fill="#10b981"/>
+  </g>
+  
+  <!-- Texto "E-COLECTOR" -->
+  <text x="40" y="55" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#059669">E-COLECTOR</text>
+</svg>
+

@@ -8,17 +8,8 @@ export default function TopBar() {
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          {/* SVG Logo */}
-          <svg className="w-9 h-9" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="16" cy="16" r="15" stroke="currentColor" strokeWidth="1" className="text-emerald-600"/>
-            <path d="M16 4C16 4 12 8 12 12C12 15.31 13.79 18.17 16 19.77C18.21 18.17 20 15.31 20 12C20 8 16 4 16 4Z" fill="currentColor" className="text-teal-500"/>
-            <circle cx="16" cy="12" r="2" fill="currentColor" className="text-emerald-700"/>
-            <path d="M10 22C10 22 8 24 8 26C8 28.21 9.34 30 11 30M22 22C22 22 24 24 24 26C24 28.21 22.66 30 21 30" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-emerald-600"/>
-          </svg>
-          <div>
-            <h1 className="font-bold text-lg text-emerald-600 dark:text-emerald-400">e-colector</h1>
-            <p className="text-xs text-gray-600 dark:text-gray-400 hidden sm:block">Reciclaje Inteligente</p>
-          </div>
+          {/* Logo Image */}
+          <img src="/assets/images/logo.svg" alt="e-colector" className="h-10 object-contain" />
         </Link>
 
         {/* Tagline - Hidden on small screens */}

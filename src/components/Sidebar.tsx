@@ -67,19 +67,10 @@ const Sidebar = () => {
         {/* Header */}
         <div className="p-6 border-b border-emerald-700 flex items-center justify-between">
           {!isCollapsed && (
-            <div className="flex items-center gap-3">
-              {/* SVG Logo */}
-              <svg className="w-10 h-10" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="15" stroke="currentColor" strokeWidth="1" className="text-emerald-300"/>
-                <path d="M16 4C16 4 12 8 12 12C12 15.31 13.79 18.17 16 19.77C18.21 18.17 20 15.31 20 12C20 8 16 4 16 4Z" fill="currentColor" className="text-teal-400"/>
-                <circle cx="16" cy="12" r="2" fill="currentColor" className="text-emerald-900"/>
-                <path d="M10 22C10 22 8 24 8 26C8 28.21 9.34 30 11 30M22 22C22 22 24 24 24 26C24 28.21 22.66 30 21 30" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-emerald-300"/>
-              </svg>
-              <div>
-                <h1 className="font-bold text-lg text-white">e-colector</h1>
-                <p className="text-xs text-emerald-200">Reciclaje Inteligente</p>
-              </div>
-            </div>
+            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              {/* Logo Image */}
+              <img src="/assets/images/logo.svg" alt="e-colector" className="w-12 h-12 object-contain" />
+            </Link>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
