@@ -201,17 +201,33 @@ CREATE POLICY "Users can insert own profile" ON public.users
   FOR INSERT WITH CHECK (auth.uid() = auth_user_id);
 
 -- Políticas para products
+-- Permitir que cualquiera (incluso anónimos) pueda ver productos activos
 CREATE POLICY "Anyone can view active products" ON public.products
   FOR SELECT USING (status = 'activo');
 
-CREATE POLICY "Users can insert own products" ON public.products
-  FOR INSERT WITH CHECK (auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id));
+-- Permitir que usuarios autenticados inserten productos
+CREATE POLICY "Authenticated users can insert products" ON public.products
+  FOR INSERT 
+  WITH CHECK (
+    auth.role() = 'authenticated' AND
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+  );
 
+-- Permitir que usuarios autenticados actualicen sus propios productos
 CREATE POLICY "Users can update own products" ON public.products
-  FOR UPDATE USING (auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id));
+  FOR UPDATE 
+  USING (
+    auth.role() = 'authenticated' AND
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+  );
 
+-- Permitir que usuarios autenticados eliminen sus propios productos
 CREATE POLICY "Users can delete own products" ON public.products
-  FOR DELETE USING (auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id));
+  FOR DELETE 
+  USING (
+    auth.role() = 'authenticated' AND
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+  );
 
 -- Políticas para offers
 CREATE POLICY "Users can view offers on their products or their own offers" ON public.offers
@@ -229,11 +245,17 @@ CREATE POLICY "Product owners can update offers on their products" ON public.off
   );
 
 -- Políticas para requests
+-- Permitir que cualquiera pueda ver solicitudes activas
 CREATE POLICY "Anyone can view active requests" ON public.requests
   FOR SELECT USING (status = 'activa');
 
+-- Permitir que usuarios autenticados gestionen sus propias solicitudes
 CREATE POLICY "Users can manage own requests" ON public.requests
-  FOR ALL USING (auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id));
+  FOR ALL 
+  USING (
+    auth.role() = 'authenticated' AND
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+  );
 
 -- Políticas para messages
 CREATE POLICY "Users can view own messages" ON public.messages
