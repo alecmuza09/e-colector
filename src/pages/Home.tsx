@@ -283,6 +283,18 @@ const Home = () => {
     return <HomeAuthenticated />;
   }
 
+  // Mostrar loading mientras se cargan los productos
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Cargando productos...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Si no está autenticado, mostrar la home pública
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -334,7 +346,7 @@ const Home = () => {
             {[
               { number: '7+', label: 'Municipios' },
               { number: '8', label: 'Categorías' },
-              { number: `${mockProducts.length}`, label: 'Listados' },
+              { number: `${products.length}`, label: 'Listados' },
               { number: '100%', label: 'Gratis' },
               { number: '24/7', label: 'Disponible' },
               { number: '♻️', label: 'Sostenible' }
@@ -504,7 +516,7 @@ const Home = () => {
                 'PET': '🧴', 'Cartón': '📦', 'Vidrio': '🍾', 'Metal': '🥫',
                 'Electrónicos': '💻', 'Papel': '📂', 'HDPE': '🧼', 'Otros': '📌'
               };
-              const count = mockProducts.filter(p => p.category === category).length;
+              const count = products.filter(p => p.category === category).length;
               
               return (
                 <button
