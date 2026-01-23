@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { mockProducts, Product } from '../data/mockProducts';
-import { MapPin, Zap, TrendingUp, Heart, MessageCircle, Clock, Shield, Search } from 'lucide-react';
+import { Product } from '../data/mockProducts';
+import { getProducts } from '../services/products';
+import { MapPin, Zap, TrendingUp, Heart, MessageCircle, Clock, Shield, Search, Loader, Package } from 'lucide-react';
 
 const MONTERREY_CENTER: L.LatLngExpression = [25.6866, -100.3161];
 
@@ -31,22 +32,43 @@ const categoryColors: Record<Product['category'], string> = {
 export default function HomeAuthenticated() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar productos desde Supabase
+  useEffect(() => {
+    const loadProducts = async () => {
+      setLoading(true);
+      const data = await getProducts();
+      setProducts(data);
+      setLoading(false);
+    };
+    loadProducts();
+  }, []);
 
   // Productos más cercanos/recientes
   const nearbyProducts = useMemo(() => {
-    return mockProducts
+    return products
       .filter(p => selectedCategory === 'Todos' || p.category === selectedCategory)
       .filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()))
       .slice(0, 6);
-  }, [selectedCategory, searchTerm]);
+  }, [products, selectedCategory, searchTerm]);
 
   // Estadísticas rápidas
   const stats = [
     { icon: Package, label: 'Productos Cercanos', value: nearbyProducts.length, color: 'emerald' },
-    { icon: TrendingUp, label: 'Activos Hoy', value: '24', color: 'teal' },
-    { icon: Clock, label: 'Últimas 24h', value: '12', color: 'blue' },
-    { icon: Shield, label: 'Verificados', value: `${Math.floor(nearbyProducts.filter(p => p.verified).length / nearbyProducts.length * 100)}%`, color: 'green' },
+    { icon: TrendingUp, label: 'Activos Hoy', value: products.length.toString(), color: 'teal' },
+    { icon: Clock, label: 'Últimas 24h', value: products.length.toString(), color: 'blue' },
+    { icon: Shield, label: 'Verificados', value: nearbyProducts.length > 0 ? `${Math.floor(nearbyProducts.filter(p => p.verified).length / nearbyProducts.length * 100)}%` : '0%', color: 'green' },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader className="animate-spin h-8 w-8 text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

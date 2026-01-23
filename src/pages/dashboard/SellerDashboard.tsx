@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { mockProducts, Product } from '../../data/mockProducts'; // Importar productos para "Mis publicaciones"
-import { Edit, Pause, Trash2, Check, RefreshCw, MessageSquare, AlertTriangle, MapPin, PlusCircle, Package, DollarSign, BarChart, Clock } from 'lucide-react';
+import { Product } from '../../data/mockProducts';
+import { supabase } from '../../lib/supabase';
+import { Edit, Pause, Trash2, Check, RefreshCw, MessageSquare, AlertTriangle, MapPin, PlusCircle, Package, DollarSign, BarChart, Clock, Loader } from 'lucide-react';
 
 // Definir un tipo que incluya el estado que añadimos en PublishListing
 type UserProduct = Product & { status: 'activo' | 'pausado' | 'vendido' | 'expirado' };
@@ -77,43 +78,57 @@ const OfferRow: React.FC<{ offer: any }> = ({ offer }) => {
 }
 
 const SellerDashboard = () => {
-  const { userName } = useAuth();
+  const { userName, userProfile } = useAuth();
   // Estado para almacenar las publicaciones del usuario
   const [userProducts, setUserProducts] = useState<UserProduct[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // useEffect para cargar productos desde localStorage al montar
+  // useEffect para cargar productos desde Supabase
   useEffect(() => {
-    const storedListingsRaw = localStorage.getItem('userListings');
-    let listingsToDisplay: UserProduct[] = [];
-
-    if (storedListingsRaw) {
-      try {
-        const parsedListings: Product[] = JSON.parse(storedListingsRaw);
-        // Asegurarse de que cada producto tenga un estado (por defecto 'activo')
-        listingsToDisplay = parsedListings.map(p => ({ 
-            ...p, 
-            // Asignar estado predeterminado o mantener si ya existe (aunque nuestro guardado actual siempre pone activo)
-            status: (p as any).status || 'activo' 
-        }));
-      } catch (error) {
-        console.error("Error al parsear listings de localStorage:", error);
-        // Fallback a datos mock si hay error
-         listingsToDisplay = [
-            { ...mockProducts[0], status: 'activo' as const },
-            { ...mockProducts[1], status: 'pausado' as const },
-            { ...mockProducts[6], status: 'vendido' as const },
-          ];
+    const loadUserProducts = async () => {
+      if (!userProfile) {
+        setLoading(false);
+        return;
       }
-    } else {
-      // Si no hay nada en localStorage, usar los datos mock iniciales
-        listingsToDisplay = [
-            { ...mockProducts[0], status: 'activo' as const },
-            { ...mockProducts[1], status: 'pausado' as const },
-            { ...mockProducts[6], status: 'vendido' as const },
-        ];
-    }
-    setUserProducts(listingsToDisplay);
-  }, []); // El array vacío asegura que se ejecute solo una vez al montar
+
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('user_id', userProfile.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const products: UserProduct[] = (data || []).map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          description: p.description,
+          price: Number(p.price),
+          currency: p.currency || 'MXN',
+          location: p.location || '',
+          municipality: p.municipality || 'Monterrey',
+          address: p.address || '',
+          category: p.category,
+          tags: p.tags || [],
+          imageUrl: p.image_url || `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(p.title)}`,
+          latitude: p.latitude || 25.6751,
+          longitude: p.longitude || -100.3185,
+          verified: p.verified,
+          type: p.type,
+          status: (p.status as any) || 'activo',
+        }));
+
+        setUserProducts(products);
+      } catch (error) {
+        console.error("Error al cargar productos:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserProducts();
+  }, [userProfile]);
 
   const receivedOffers = [
       { id: 1, material: 'Botellas PET Cristal', user: 'Recicladora Monterrey', userType: 'Comprador', price: 9.00, quantity: '45kg', date: '2024-09-15', time: '10:00', status: 'pendiente' },
@@ -136,6 +151,14 @@ const SellerDashboard = () => {
     { id: 'h2', material: 'Chatarra Electrónica', date: '05/08/2024', status: 'Donado', quantity: 'N/A', buyer: 'Centro Comunitario' },
     { id: 'h3', material: 'Vidrio (Frascos)', date: '01/08/2024', status: 'Expirado', quantity: 'N/A', buyer: '-' },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <Loader className="animate-spin h-8 w-8 text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div>

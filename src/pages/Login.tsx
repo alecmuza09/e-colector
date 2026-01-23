@@ -1,31 +1,28 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserRole } from '../types/user';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // --- Simulación de Autenticación --- 
-    // En una app real, llamarías a tu API aquí.
-    // Aquí simulamos un login exitoso para cualquier email/pass
-    // y asignamos un rol basado en el email (solo para demo)
-    let simulatedRole = UserRole.BUYER; // Rol por defecto
-    if (email.includes('seller')) simulatedRole = UserRole.SELLER;
-    if (email.includes('collector')) simulatedRole = UserRole.COLLECTOR;
-    
-    const simulatedUserName = email.split('@')[0]; // Usar parte local del email como nombre
+    setError(null);
+    setLoading(true);
 
-    console.log('Login attempt:', { email, password });
-    
-    login(simulatedRole, simulatedUserName); // Llamar a login del contexto
-    navigate('/dashboard'); // Redirigir al dashboard
-    // --- Fin Simulación ---
+    const { error: loginError } = await login(email, password);
+
+    if (loginError) {
+      setError(loginError.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+      setLoading(false);
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -68,12 +65,19 @@ function Login() {
              {/* TODO: Añadir enlace "Olvidé mi contraseña" */}
           </div>
 
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+
           <div>
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition duration-150 ease-in-out"
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Entrar
+              {loading ? 'Iniciando sesión...' : 'Entrar'}
             </button>
           </div>
         </form>

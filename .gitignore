@@ -25,3 +25,4 @@ dist-ssr
 
 # Ignorar carpeta e-colector anidada
 e-colector/
+.env

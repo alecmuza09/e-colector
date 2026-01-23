@@ -204,7 +204,6 @@ function Register() {
   // Estados para campos adicionales (objeto único)
   const [additionalData, setAdditionalData] = useState<any>({}); 
 
-  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleRoleSelect = (role: UserRole) => {
@@ -240,21 +239,33 @@ function Register() {
      setAdditionalData((prev: any) => ({ ...prev, [name]: checked }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { signUp } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
     if (password !== confirmPassword) {
-      alert("Las contraseñas no coinciden.");
+      setError("Las contraseñas no coinciden.");
       return;
     }
     if (!termsAccepted) {
-      alert("Debes aceptar los términos y condiciones.");
+      setError("Debes aceptar los términos y condiciones.");
       return;
     }
     if (!selectedRole) {
-      alert("Error: Rol no seleccionado.");
+      setError("Error: Rol no seleccionado.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
     
+    setLoading(true);
+
     const registrationData = {
       name,
       email,
@@ -263,14 +274,17 @@ function Register() {
       phone,
       city,
       termsAccepted,
-      ...additionalData
+      additionalData
     };
     
-    console.log('Register attempt:', registrationData);
-    alert(`Registro simulado exitoso para ${name} como ${selectedRole}.`);
-    
-    login(selectedRole, name);
-    navigate('/dashboard');
+    const { error: signUpError } = await signUp(email, password, registrationData);
+
+    if (signUpError) {
+      setError(signUpError.message || 'Error al registrar. Intenta de nuevo.');
+      setLoading(false);
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -317,14 +331,20 @@ function Register() {
             {/* Aceptar Términos */}
             <CheckboxField name="termsAccepted" label="He leído y acepto los Términos y Condiciones y la Política de Privacidad." checked={termsAccepted} onChange={(e:React.ChangeEvent<HTMLInputElement>) => setTermsAccepted(e.target.checked)} />
            
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                {error}
+              </div>
+            )}
+
              {/* Botón Submit y Enlace Login */}
             <div className="flex flex-col sm:flex-row items-center justify-between mt-8">
               <button
                 className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 transition duration-150 ease-in-out mb-4 sm:mb-0"
                 type="submit"
-                disabled={password !== confirmPassword || !termsAccepted || !name || !email || !phone || !city || password.length < 8}
+                disabled={loading || password !== confirmPassword || !termsAccepted || !name || !email || !phone || !city || password.length < 8}
               >
-                Crear Cuenta
+                {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
               </button>
               <a href="/login" className="inline-block align-baseline font-bold text-sm text-blue-600 hover:text-blue-800">
                 ¿Ya tienes cuenta? Inicia Sesión

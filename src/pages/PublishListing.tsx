@@ -1,7 +1,9 @@
 import React, { useState, ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, AlertCircle, CheckCircle } from 'lucide-react';
-import { Product } from '../data/mockProducts'; // Corregir ruta de importación
+import { Product } from '../data/mockProducts';
+import { createProduct } from '../services/products';
+import { useAuth } from '../context/AuthContext';
 
 // Interfaz simplificada para los datos del formulario
 interface ListingFormData {
@@ -30,6 +32,7 @@ const UNITS = ['kg', 'Ton'];
 
 const PublishListing = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, userProfile } = useAuth();
   const [formData, setFormData] = useState<ListingFormData>({
     title: '',
     category: '',
@@ -41,6 +44,13 @@ const PublishListing = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  // Redirigir si no está autenticado
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
 
   // --- Handlers --- //
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -76,7 +86,7 @@ const PublishListing = () => {
   };
 
   // --- Acciones --- //
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
@@ -85,55 +95,39 @@ const PublishListing = () => {
     setErrors({}); // Limpiar errores generales
 
     try {
-      // Leer publicaciones existentes de localStorage
-      const storedListingsRaw = localStorage.getItem('userListings');
-      const existingListings: Product[] = storedListingsRaw ? JSON.parse(storedListingsRaw) : [];
-      
       // Combinar título, cantidad y unidad
       const combinedTitle = `${formData.title.trim()} (${formData.quantity} ${formData.unit})`;
 
-      // Crear nueva publicación
-      const newListing: Product & { status: 'activo' } = {
-        id: `user-${Date.now()}-${Math.random().toString(16).slice(2)}`, // ID único simple
-        title: combinedTitle, // Usar título combinado
-        category: formData.category as any, // Usar aserción de tipo para compatibilidad
-        price: Number(formData.price), // Convertir a número
+      // Crear nueva publicación en Supabase
+      const newProduct = await createProduct({
+        title: combinedTitle,
+        category: formData.category,
+        price: Number(formData.price),
         description: formData.description.trim(),
-        imageUrl: `/api/placeholder/400/300/${formData.category.toLowerCase()}`, // Placeholder image URL
-        location: 'Ubicación Simulada', // Dato simulado
-        currency: 'MXN', 
-        municipality: 'Monterrey', // Simular municipio
-        address: 'Dirección Simulada', // Simular dirección
-        tags: [formData.category.toLowerCase(), 'nuevo'], // Tags simulados
-        latitude: 25.6751, // Simular coordenadas
-        longitude: -100.3185, // Simular coordenadas
-        verified: false, // Nuevas publicaciones no verificadas por defecto
-        type: 'venta', // Asumir venta por defecto
-        status: 'activo', // Nueva publicación siempre activa
-      };
+        quantity: Number(formData.quantity),
+        unit: formData.unit as 'kg' | 'Ton',
+        location: userProfile?.city ? `📍 ${userProfile.city}` : '📍 Monterrey',
+        municipality: userProfile?.city || 'Monterrey',
+        address: userProfile?.city || 'Monterrey',
+        tags: [formData.category.toLowerCase(), 'nuevo'],
+        image_url: `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(formData.title)}`,
+        type: 'venta',
+      });
 
-      // Añadir y guardar en localStorage
-      const updatedListings = [...existingListings, newListing];
-      localStorage.setItem('userListings', JSON.stringify(updatedListings));
-
-      console.log('Publicación guardada en localStorage:', newListing);
+      console.log('Publicación guardada en Supabase:', newProduct);
       setSubmissionStatus('success');
       
       // Limpiar formulario y redirigir después de un momento
-      setFormData({ title: '', category: '', price: '', description: '', quantity: '', unit: '' }); // Limpiar nuevos campos
+      setFormData({ title: '', category: '', price: '', description: '', quantity: '', unit: '' });
       setTimeout(() => {
-          navigate('/dashboard'); // Redirigir al dashboard del vendedor
-      }, 1500); // Espera 1.5 segundos para mostrar mensaje de éxito
+          navigate('/dashboard');
+      }, 1500);
 
-    } catch (error) {
-      console.error('Error al guardar en localStorage:', error);
+    } catch (error: any) {
+      console.error('Error al guardar en Supabase:', error);
       setSubmissionStatus('error');
-      setErrors({ general: 'Error al guardar la publicación. Inténtalo de nuevo.' });
-    } finally {
-      // Mantener isSubmitting en true durante el timeout para evitar doble submit
-       if (submissionStatus !== 'success') {
-            setIsSubmitting(false);
-       } 
+      setErrors({ general: error.message || 'Error al guardar la publicación. Inténtalo de nuevo.' });
+      setIsSubmitting(false);
     }
   };
 

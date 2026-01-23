@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { MapPin, Calendar, Clock, DollarSign, Package, Info, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
-import { mockProducts, Product } from '../data/mockProducts';
+import { MapPin, Calendar, Clock, DollarSign, Package, Info, CheckCircle, AlertCircle, ArrowLeft, Loader } from 'lucide-react';
+import { Product } from '../data/mockProducts';
+import { getProductById } from '../services/products';
 
 interface Offer {
   id: number;
@@ -21,17 +22,46 @@ const formatPrice = (price: number, currency: string, type: Product['type']) => 
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const product = mockProducts.find(p => p.id === id);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [offer, setOffer] = useState<Partial<Offer>>({
-    price: product?.type === 'venta' ? product.price : 0,
+    price: 0,
     suggestedDate: '',
     suggestedTime: '',
   });
 
   const isVerifiedCollector = true;
+
+  useEffect(() => {
+    const loadProduct = async () => {
+      if (id) {
+        setLoading(true);
+        const data = await getProductById(id);
+        setProduct(data);
+        if (data) {
+          setOffer({
+            price: data.type === 'venta' ? data.price : 0,
+            suggestedDate: '',
+            suggestedTime: '',
+          });
+        }
+        setLoading(false);
+      }
+    };
+    loadProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <Loader className="animate-spin h-8 w-8 mx-auto text-emerald-600" />
+        <p className="mt-4 text-gray-600">Cargando producto...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (

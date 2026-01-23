@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from 'react-leaflet';
 import L, { Layer, LeafletMouseEvent } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { mockProducts, Product } from '../data/mockProducts';
+import { Product } from '../data/mockProducts';
+import { getProducts } from '../services/products';
 import { Filter, MapPin, Package, Search, CheckCircle, Layers, Info, Eye } from 'lucide-react';
 import TopBar from '../components/TopBar';
 import { useAuth } from '../context/AuthContext';
@@ -185,10 +186,23 @@ const Home = () => {
     const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null); 
     const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
     const [hoveredCity, setHoveredCity] = useState<string | null>(null); // Estado para ciudad en hover
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Cargar productos desde Supabase
+    useEffect(() => {
+        const loadProducts = async () => {
+            setLoading(true);
+            const data = await getProducts();
+            setProducts(data);
+            setLoading(false);
+        };
+        loadProducts();
+    }, []);
 
     // Filtrar productos basado en categoría, ciudad y búsqueda
     const filteredListings = useMemo(() => {
-        let processedListings = [...mockProducts];
+        let processedListings = [...products];
 
         if (selectedCategory !== 'Todos') {
             processedListings = processedListings.filter(p => p.category === selectedCategory);
@@ -206,7 +220,7 @@ const Home = () => {
             );
         }
         return processedListings;
-    }, [selectedCategory, selectedCity, searchTerm]);
+    }, [products, selectedCategory, selectedCity, searchTerm]);
     
     const handleCardHover = (productId: string | null) => {
         setHoveredMarkerId(productId);

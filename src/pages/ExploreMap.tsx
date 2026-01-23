@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { mockProducts, Product } from '../data/mockProducts';
+import { Product } from '../data/mockProducts';
+import { getProducts } from '../services/products';
 import { Filter, Search, X, MapPin, DollarSign, CheckCircle, Heart, Loader } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -151,11 +152,24 @@ const ExploreMapLeaflet = () => {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Cargar productos desde Supabase
+  useEffect(() => {
+    const loadProducts = async () => {
+      setLoading(true);
+      const data = await getProducts();
+      setProducts(data);
+      setLoading(false);
+    };
+    loadProducts();
+  }, []);
 
   // Filtrado mejorado
   const filteredProducts = useMemo(() => {
-    let results = mockProducts;
+    let results = products;
 
     // Filtrar por categoría
     if (selectedCategory !== 'Todos') {
@@ -174,7 +188,7 @@ const ExploreMapLeaflet = () => {
     }
 
     return results;
-  }, [selectedCategory, searchTerm]);
+  }, [products, selectedCategory, searchTerm]);
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: currency }).format(price);
