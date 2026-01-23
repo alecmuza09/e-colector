@@ -47,9 +47,31 @@ const LoadingFallback = () => (
 // Rutas que SI necesitan sidebar
 const SIDEBAR_ROUTES = ['/explorar', '/dashboard', '/perfil', '/publicar', '/estadisticas', '/favoritos', '/mensajes', '/'];
 
+// Rutas que NO deben mostrar sidebar
+const NO_SIDEBAR_ROUTES = ['/login', '/registro'];
+
 function AppContent() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+  
+  // No mostrar sidebar en login y registro
+  if (NO_SIDEBAR_ROUTES.includes(location.pathname)) {
+    return (
+      <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900">
+        <main className="flex-1 flex flex-col w-full">
+          <div className="flex-grow">
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/registro" element={<Register />} />
+              </Routes>
+            </Suspense>
+          </div>
+          <Footer />
+        </main>
+      </div>
+    );
+  }
   
   // Mostrar sidebar en todas las rutas, pero en "/" solo si está autenticado
   const shouldShowSidebar = location.pathname === '/' 

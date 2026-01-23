@@ -4,6 +4,7 @@ import { Save, AlertCircle, CheckCircle } from 'lucide-react';
 import { Product } from '../data/mockProducts';
 import { createProduct } from '../services/products';
 import { useAuth } from '../context/AuthContext';
+import { MUNICIPALITY_NAMES, getMunicipalityByName, getRandomCoordinates } from '../config/municipalities';
 
 // Interfaz simplificada para los datos del formulario
 interface ListingFormData {
@@ -13,6 +14,9 @@ interface ListingFormData {
   description: string;
   quantity: string; // Nuevo campo para cantidad
   unit: 'kg' | 'Ton' | ''; // Nuevo campo para unidad
+  municipality: string; // Municipio
+  address: string; // Dirección específica
+  type: 'venta' | 'donacion' | ''; // Tipo de publicación
 }
 
 // Interfaz para los errores de validación
@@ -23,6 +27,9 @@ interface FormErrors {
   description?: string;
   quantity?: string; // Error para cantidad
   unit?: string; // Error para unidad
+  municipality?: string;
+  address?: string;
+  type?: string;
   general?: string; // Para errores generales
 }
 
@@ -40,6 +47,9 @@ const PublishListing = () => {
     description: '',
     quantity: '', // Inicializar nuevo campo
     unit: '', // Inicializar nuevo campo
+    municipality: '',
+    address: '',
+    type: 'venta',
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,16 +76,21 @@ const PublishListing = () => {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     if (!formData.title.trim()) newErrors.title = 'El título del material es obligatorio.';
-    // Eliminar validación de cantidad en título
     if (!formData.category) newErrors.category = 'Selecciona una categoría.';
-    if (!formData.price.trim() || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
-      newErrors.price = 'Introduce un precio por kg válido mayor que 0.';
+    if (formData.type === 'venta' && (!formData.price.trim() || isNaN(Number(formData.price)) || Number(formData.price) <= 0)) {
+      newErrors.price = 'Introduce un precio válido mayor que 0.';
     }
-    if (!formData.quantity.trim() || isNaN(Number(formData.quantity)) || Number(formData.quantity) <= 0) { // Validar cantidad
+    if (!formData.quantity.trim() || isNaN(Number(formData.quantity)) || Number(formData.quantity) <= 0) {
         newErrors.quantity = 'Introduce una cantidad válida mayor que 0.';
     }
-    if (!formData.unit) { // Validar unidad
+    if (!formData.unit) {
         newErrors.unit = 'Selecciona una unidad.';
+    }
+    if (!formData.municipality) {
+      newErrors.municipality = 'Selecciona un municipio.';
+    }
+    if (!formData.address.trim()) {
+      newErrors.address = 'Ingresa una dirección.';
     }
     if (formData.description.trim().length < 20) {
       newErrors.description = 'La descripción debe tener al menos 20 caracteres.';
@@ -98,27 +113,33 @@ const PublishListing = () => {
       // Combinar título, cantidad y unidad
       const combinedTitle = `${formData.title.trim()} (${formData.quantity} ${formData.unit})`;
 
+      // Obtener coordenadas del municipio seleccionado
+      const municipality = getMunicipalityByName(formData.municipality);
+      const coordinates = municipality ? getRandomCoordinates(municipality) : { latitude: 25.6751, longitude: -100.3185 };
+
       // Crear nueva publicación en Supabase
       const newProduct = await createProduct({
         title: combinedTitle,
         category: formData.category,
-        price: Number(formData.price),
+        price: formData.type === 'venta' ? Number(formData.price) : 0,
         description: formData.description.trim(),
         quantity: Number(formData.quantity),
         unit: formData.unit as 'kg' | 'Ton',
-        location: userProfile?.city ? `📍 ${userProfile.city}` : '📍 Monterrey',
-        municipality: userProfile?.city || 'Monterrey',
-        address: userProfile?.city || 'Monterrey',
+        location: `📍 ${formData.municipality}`,
+        municipality: formData.municipality,
+        address: formData.address.trim(),
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
         tags: [formData.category.toLowerCase(), 'nuevo'],
         image_url: `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(formData.title)}`,
-        type: 'venta',
+        type: formData.type as 'venta' | 'donacion',
       });
 
       console.log('Publicación guardada en Supabase:', newProduct);
       setSubmissionStatus('success');
       
       // Limpiar formulario y redirigir después de un momento
-      setFormData({ title: '', category: '', price: '', description: '', quantity: '', unit: '' });
+      setFormData({ title: '', category: '', price: '', description: '', quantity: '', unit: '', municipality: '', address: '', type: 'venta' });
       setTimeout(() => {
           navigate('/dashboard');
       }, 1500);
@@ -193,13 +214,47 @@ const PublishListing = () => {
             {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
           </div>
 
-          {/* Precio */}
+          {/* Tipo de publicación */}
           <div>
-            <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Precio por Unidad Seleccionada ($) <span className="text-red-500">*</span></label>
-            <input type="number" id="price" name="price" value={formData.price} onChange={handleChange} required placeholder="Ej: 8.50"
-                   min="0.01" step="0.01"
-                   className={`w-full p-2 border rounded-lg shadow-sm ${errors.price ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
-            {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+            <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Publicación <span className="text-red-500">*</span></label>
+            <select id="type" name="type" value={formData.type} onChange={handleChange} required
+                    className={`w-full p-2 border rounded-lg shadow-sm bg-white ${errors.type ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`}>
+              <option value="venta">💰 Venta</option>
+              <option value="donacion">🎁 Donación</option>
+            </select>
+            {errors.type && <p className="text-red-500 text-xs mt-1">{errors.type}</p>}
+          </div>
+
+          {/* Precio - Solo mostrar si es venta */}
+          {formData.type === 'venta' && (
+            <div>
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Precio por Unidad Seleccionada ($) <span className="text-red-500">*</span></label>
+              <input type="number" id="price" name="price" value={formData.price} onChange={handleChange} required placeholder="Ej: 8.50"
+                     min="0.01" step="0.01"
+                     className={`w-full p-2 border rounded-lg shadow-sm ${errors.price ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
+              {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+            </div>
+          )}
+          
+          {/* Municipio */}
+          <div>
+            <label htmlFor="municipality" className="block text-sm font-medium text-gray-700 mb-1">Municipio <span className="text-red-500">*</span></label>
+            <select id="municipality" name="municipality" value={formData.municipality} onChange={handleChange} required
+                    className={`w-full p-2 border rounded-lg shadow-sm bg-white ${errors.municipality ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`}>
+              <option value="" disabled>-- Selecciona un municipio --</option>
+              {MUNICIPALITY_NAMES.map(mun => (
+                <option key={mun} value={mun}>{mun}</option>
+              ))}
+            </select>
+            {errors.municipality && <p className="text-red-500 text-xs mt-1">{errors.municipality}</p>}
+          </div>
+
+          {/* Dirección */}
+          <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Dirección <span className="text-red-500">*</span></label>
+            <input type="text" id="address" name="address" value={formData.address} onChange={handleChange} required placeholder="Ej: Av. Revolución 123, Col. Centro"
+                   className={`w-full p-2 border rounded-lg shadow-sm ${errors.address ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
+            {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
           </div>
           
           {/* Descripción */}
