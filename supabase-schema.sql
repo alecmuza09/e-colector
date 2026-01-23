@@ -9,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('buyer', 'seller', 'collector')),
+  role TEXT NOT NULL CHECK (role IN ('buyer', 'seller', 'collector', 'admin')),
   full_name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   phone_number TEXT,
@@ -194,11 +194,27 @@ ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view public profiles" ON public.users
   FOR SELECT USING (public_profile = true OR auth.uid() = auth_user_id);
 
+CREATE POLICY "Admins can view all users" ON public.users
+  FOR SELECT USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
+  );
+
 CREATE POLICY "Users can update own profile" ON public.users
   FOR UPDATE USING (auth.uid() = auth_user_id);
 
+CREATE POLICY "Admins can update any user" ON public.users
+  FOR UPDATE USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
+  );
+
 CREATE POLICY "Users can insert own profile" ON public.users
   FOR INSERT WITH CHECK (auth.uid() = auth_user_id);
+
+CREATE POLICY "Admins can delete users" ON public.users
+  FOR DELETE USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin') AND
+    id NOT IN (SELECT id FROM public.users WHERE role = 'admin')
+  );
 
 -- Políticas para products
 -- Permitir que cualquiera (incluso anónimos) pueda ver productos activos

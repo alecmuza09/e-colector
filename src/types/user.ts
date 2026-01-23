@@ -8,6 +8,7 @@ export enum UserRole {
     BUYER = 'buyer',
     SELLER = 'seller',
     COLLECTOR = 'collector',
+    ADMIN = 'admin',
 }
 
 // --- Campos Comunes ---
@@ -92,9 +93,18 @@ export interface CollectorProfile extends CommonProfileData {
     // insuranceDetails?: string; // Opcional, más detalles
 }
 
+// --- Perfil de Administrador ---
+export interface AdminProfile extends CommonProfileData {
+    role: UserRole.ADMIN;
+    // Los admins tienen acceso completo a todo
+    canManageUsers: boolean;
+    canManageProducts: boolean;
+    canManageSystem: boolean;
+}
+
 // --- Tipo Unión para Perfil de Usuario ---
 // Discriminated Union: El campo 'role' determina qué campos específicos están presentes.
-export type UserProfile = BuyerProfile | SellerProfile | CollectorProfile;
+export type UserProfile = BuyerProfile | SellerProfile | CollectorProfile | AdminProfile;
 
 // --- Tipos Adicionales (Placeholders) ---
 // export interface Review { /* ... */ }
