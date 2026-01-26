@@ -13,12 +13,30 @@
 DO $$
 DECLARE
   v_auth_user_id UUID;
+  v_role_check_def TEXT;
 BEGIN
   -- IMPORTANTE:
   -- Si tienes activo el trigger prevent_users_role_escalation(), el SQL Editor no trae JWT
   -- y auth.role() puede venir NULL. Esto puede bloquear la creación del admin.
   -- Forzamos el contexto como service_role SOLO dentro de esta ejecución.
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
+
+  -- Asegura que el CHECK constraint de role permita 'admin'
+  -- (Tu error 23514 indica que tu constraint actual NO incluye 'admin')
+  SELECT pg_get_constraintdef(oid) INTO v_role_check_def
+  FROM pg_constraint
+  WHERE conrelid = 'public.users'::regclass
+    AND conname = 'users_role_check'
+  LIMIT 1;
+
+  IF v_role_check_def IS NULL THEN
+    ALTER TABLE public.users
+      ADD CONSTRAINT users_role_check CHECK (role IN ('buyer','seller','collector','admin'));
+  ELSIF position('admin' IN v_role_check_def) = 0 THEN
+    ALTER TABLE public.users DROP CONSTRAINT users_role_check;
+    ALTER TABLE public.users
+      ADD CONSTRAINT users_role_check CHECK (role IN ('buyer','seller','collector','admin'));
+  END IF;
 
   -- Buscar el usuario por email en auth.users
   SELECT id INTO v_auth_user_id

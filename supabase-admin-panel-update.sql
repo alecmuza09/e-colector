@@ -7,6 +7,12 @@
 --
 -- Recomendado ejecutarlo en Supabase SQL Editor.
 
+-- 0) Asegurar que el CHECK constraint de role permita 'admin'
+-- (Si tu esquema se creó antes, puede que role solo permita buyer/seller/collector)
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE public.users
+  ADD CONSTRAINT users_role_check CHECK (role IN ('buyer', 'seller', 'collector', 'admin'));
+
 -- 1) Trigger anti-escalación de rol
 CREATE OR REPLACE FUNCTION public.prevent_users_role_escalation()
 RETURNS TRIGGER AS $$
