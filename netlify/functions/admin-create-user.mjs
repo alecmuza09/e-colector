@@ -20,6 +20,16 @@ export async function handler(event) {
     }
   };
 
+  const isValidServerKey = (key) => {
+    const k = String(key || '');
+    // Nuevo formato Supabase API Keys (server): sb_secret_...
+    if (k.startsWith('sb_secret_')) return true;
+    // Evitar usar publishable/anon key en server
+    if (k.startsWith('sb_publishable_')) return false;
+    // Legacy JWT keys: service_role
+    return getJwtRole(k) === 'service_role';
+  };
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return {
       statusCode: 500,
@@ -30,13 +40,12 @@ export async function handler(event) {
   }
 
   // Validación dura: la key debe ser service_role (si no, RLS bloqueará y parecerá "no eres admin")
-  const keyRole = getJwtRole(SERVICE_ROLE_KEY);
-  if (keyRole !== 'service_role') {
+  if (!isValidServerKey(SERVICE_ROLE_KEY)) {
     return {
       statusCode: 500,
       body: JSON.stringify({
         error:
-          'SUPABASE_SERVICE_ROLE_KEY no es una service_role key válida (revisa que pegaste la key "service_role" de Supabase Settings > API).',
+          'SUPABASE_SERVICE_ROLE_KEY no es válida. Usa la key "service_role" (legacy JWT) o la key "sb_secret_" (secret key) desde Supabase Settings > API.',
       }),
     };
   }

@@ -20,6 +20,13 @@ export async function handler(event) {
     }
   };
 
+  const isValidServerKey = (key) => {
+    const k = String(key || '');
+    if (k.startsWith('sb_secret_')) return true;
+    if (k.startsWith('sb_publishable_')) return false;
+    return getJwtRole(k) === 'service_role';
+  };
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return {
       statusCode: 500,
@@ -29,13 +36,12 @@ export async function handler(event) {
     };
   }
 
-  const keyRole = getJwtRole(SERVICE_ROLE_KEY);
-  if (keyRole !== 'service_role') {
+  if (!isValidServerKey(SERVICE_ROLE_KEY)) {
     return {
       statusCode: 500,
       body: JSON.stringify({
         error:
-          'SUPABASE_SERVICE_ROLE_KEY no es una service_role key válida (revisa que pegaste la key "service_role" de Supabase Settings > API).',
+          'SUPABASE_SERVICE_ROLE_KEY no es válida. Usa la key "service_role" (legacy JWT) o la key "sb_secret_" (secret key) desde Supabase Settings > API.',
       }),
     };
   }
