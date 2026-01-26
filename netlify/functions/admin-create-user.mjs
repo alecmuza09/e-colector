@@ -6,11 +6,37 @@ export async function handler(event) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  const getJwtRole = (jwt) => {
+    try {
+      const parts = String(jwt || '').split('.');
+      if (parts.length < 2) return null;
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+      const json = Buffer.from(padded, 'base64').toString('utf8');
+      const payload = JSON.parse(json);
+      return payload?.role || null;
+    } catch {
+      return null;
+    }
+  };
+
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return {
       statusCode: 500,
       body: JSON.stringify({
         error: 'Faltan variables de entorno: SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY',
+      }),
+    };
+  }
+
+  // Validación dura: la key debe ser service_role (si no, RLS bloqueará y parecerá "no eres admin")
+  const keyRole = getJwtRole(SERVICE_ROLE_KEY);
+  if (keyRole !== 'service_role') {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error:
+          'SUPABASE_SERVICE_ROLE_KEY no es una service_role key válida (revisa que pegaste la key "service_role" de Supabase Settings > API).',
       }),
     };
   }
