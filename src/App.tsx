@@ -14,6 +14,7 @@ const Home = lazy(() => import('./pages/Home'));
 const ListingDetail = lazy(() => import('./pages/ListingDetail'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
 const About = lazy(() => import('./pages/info/About'));
@@ -48,7 +49,7 @@ const LoadingFallback = () => (
 const SIDEBAR_ROUTES = ['/explorar', '/dashboard', '/perfil', '/publicar', '/estadisticas', '/favoritos', '/mensajes', '/'];
 
 // Rutas que NO deben mostrar sidebar
-const NO_SIDEBAR_ROUTES = ['/login', '/registro'];
+const NO_SIDEBAR_ROUTES = ['/login', '/registro', '/auth/callback'];
 
 function AppContent() {
   const location = useLocation();
@@ -64,6 +65,7 @@ function AppContent() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/registro" element={<Register />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
               </Routes>
             </Suspense>
           </div>
@@ -93,6 +95,7 @@ function AppContent() {
                 <Route path="/listado/:id" element={<ListingDetail />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/registro" element={<Register />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 
                 {/* Rutas Protegidas (requieren login) */}
                 <Route path="/dashboard" element={<Dashboard />} />

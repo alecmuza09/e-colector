@@ -7,7 +7,7 @@
 2. Haz clic en **Add User** > **Create new user**
 3. Ingresa los siguientes datos:
    - **Email**: `alec.muza@capacit.io`
-   - **Password**: `alecmuza09`
+   - **Password**: *(defínela en Supabase; **no la guardes en Git** )*
    - **Auto Confirm User**: ✅ (marcar esta opción)
 4. Haz clic en **Create User**
 

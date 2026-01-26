@@ -37,18 +37,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Procesa links de Supabase tipo "#access_token=...&refresh_token=..."
+  const hydrateSessionFromUrl = async () => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    if (!hash) return;
+
+    const params = new URLSearchParams(hash);
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+
+    if (access_token && refresh_token) {
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (error) {
+        console.error('Error setting session from URL hash:', error);
+      }
+      // Limpia el hash para no re-procesarlo
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    }
+  };
+
   // Cargar sesión al iniciar
   useEffect(() => {
-    // Verificar sesión existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setIsAuthenticated(!!session?.user);
-      if (session?.user) {
-        loadUserProfile(session.user.id);
-      } else {
+    const init = async () => {
+      try {
+        setLoading(true);
+        await hydrateSessionFromUrl();
+
+        // Verificar sesión existente
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+        setIsAuthenticated(!!session?.user);
+        if (session?.user) {
+          await loadUserProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error('Auth init error:', e);
         setLoading(false);
       }
-    });
+    };
+
+    init();
 
     // Escuchar cambios de autenticación
     const {
@@ -121,6 +152,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          // Importante: que el email apunte al dominio actual (Netlify o local)
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (authError) {

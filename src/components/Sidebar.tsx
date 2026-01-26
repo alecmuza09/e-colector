@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   Home,
   Map,
@@ -13,16 +14,18 @@ import {
   ChevronDown,
   Menu,
   X,
-  Leaf,
-  TrendingUp,
   Bell,
-  Search
+  Search,
+  Shield
 } from 'lucide-react';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { userRole, logout, isAuthenticated } = useAuth();
+  const isAdmin = userRole === 'admin';
 
   const navItems = [
     { label: 'Inicio', icon: Home, path: '/' },
@@ -33,6 +36,7 @@ const Sidebar = () => {
   ];
 
   const secondaryItems = [
+    ...(isAdmin ? [{ label: 'Administración', icon: Shield, path: '/perfil' }] : []),
     { label: 'Estadísticas', icon: BarChart3, path: '/estadisticas' },
     { label: 'Perfil', icon: User, path: '/perfil' },
     { label: 'Configuración', icon: Settings, path: '/configuracion' },
@@ -59,7 +63,7 @@ const Sidebar = () => {
 
       {/* Sidebar */}
       <div
-        className={`fixed md:relative h-screen bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-900 text-white transition-all duration-300 z-40 flex flex-col
+        className={`fixed md:sticky md:top-0 h-screen bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-900 text-white transition-all duration-300 z-40 flex flex-col
           ${isOpen ? 'left-0' : '-left-full md:left-0'}
           ${isCollapsed ? 'w-24' : 'w-64 md:w-80'}
         `}
@@ -173,7 +177,16 @@ const Sidebar = () => {
                 <span className="text-xs font-bold text-emerald-300">75%</span>
               </div>
             </div>
-            <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors font-medium">
+            <button
+              onClick={async () => {
+                try {
+                  await logout();
+                } finally {
+                  navigate('/login');
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors font-medium"
+            >
               <LogOut className="w-4 h-4" />
               Cerrar Sesión
             </button>
@@ -182,7 +195,16 @@ const Sidebar = () => {
 
         {isCollapsed && (
           <div className="p-4 flex justify-center">
-            <button className="p-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+            <button
+              onClick={async () => {
+                try {
+                  await logout();
+                } finally {
+                  navigate('/login');
+                }
+              }}
+              className="p-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+            >
               <LogOut className="w-5 h-5" />
             </button>
           </div>

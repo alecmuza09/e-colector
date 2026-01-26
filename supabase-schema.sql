@@ -179,6 +179,51 @@ CREATE TRIGGER update_requests_updated_at BEFORE UPDATE ON public.requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
+-- 7.1 SEGURIDAD: prevenir escalación de rol a admin
+-- ============================================
+-- Evita que un usuario normal se auto-asigne role='admin' vía INSERT/UPDATE.
+-- Permite cambios de rol solo si:
+-- - el solicitante YA es admin (auth.uid() existe en public.users con role='admin'), o
+-- - la operación viene con service_role (migraciones / funciones server-side).
+CREATE OR REPLACE FUNCTION public.prevent_users_role_escalation()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF auth.role() = 'service_role' THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.role = 'admin' THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM public.users
+        WHERE auth_user_id = auth.uid()
+          AND role = 'admin'
+      ) THEN
+        RAISE EXCEPTION 'No autorizado para crear usuarios admin';
+      END IF;
+    END IF;
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF NEW.role IS DISTINCT FROM OLD.role THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM public.users
+        WHERE auth_user_id = auth.uid()
+          AND role = 'admin'
+      ) THEN
+        RAISE EXCEPTION 'No autorizado para cambiar el rol de usuario';
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS prevent_users_role_escalation_trigger ON public.users;
+CREATE TRIGGER prevent_users_role_escalation_trigger
+BEFORE INSERT OR UPDATE OF role ON public.users
+FOR EACH ROW EXECUTE FUNCTION public.prevent_users_role_escalation();
+
+-- ============================================
 -- 8. ROW LEVEL SECURITY (RLS)
 -- ============================================
 
@@ -221,6 +266,12 @@ CREATE POLICY "Admins can delete users" ON public.users
 CREATE POLICY "Anyone can view active products" ON public.products
   FOR SELECT USING (status = 'activo');
 
+-- Admins pueden ver TODOS los productos (para panel y moderación)
+CREATE POLICY "Admins can view all products" ON public.products
+  FOR SELECT USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
+  );
+
 -- Permitir que usuarios autenticados inserten productos
 CREATE POLICY "Authenticated users can insert products" ON public.products
   FOR INSERT 
@@ -237,12 +288,47 @@ CREATE POLICY "Users can update own products" ON public.products
     auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
   );
 
+-- Admins pueden actualizar cualquier producto (moderación: status, verified, etc.)
+CREATE POLICY "Admins can update any product" ON public.products
+  FOR UPDATE
+  USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
+  );
+
 -- Permitir que usuarios autenticados eliminen sus propios productos
 CREATE POLICY "Users can delete own products" ON public.products
   FOR DELETE 
   USING (
     auth.role() = 'authenticated' AND
     auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+  );
+
+-- Admins pueden eliminar cualquier producto
+CREATE POLICY "Admins can delete any product" ON public.products
+  FOR DELETE
+  USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
+  );
+
+-- Políticas admin para offers/requests/messages/favorites (lectura global para panel)
+CREATE POLICY "Admins can view all offers" ON public.offers
+  FOR SELECT USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
+  );
+
+CREATE POLICY "Admins can view all requests" ON public.requests
+  FOR SELECT USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
+  );
+
+CREATE POLICY "Admins can view all messages" ON public.messages
+  FOR SELECT USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
+  );
+
+CREATE POLICY "Admins can view all favorites" ON public.favorites
+  FOR SELECT USING (
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
   );
 
 -- Políticas para offers
