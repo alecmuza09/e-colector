@@ -35,7 +35,7 @@ export async function handler(event) {
 
   // 2) Verificar que el solicitante sea admin en public.users
   const profileRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?select=role&auth_user_id=eq.${encodeURIComponent(requester.id)}&limit=1`,
+    `${SUPABASE_URL}/rest/v1/users?select=role&auth_user_id=eq.${encodeURIComponent(requester.id)}&role=eq.admin&limit=1`,
     {
       headers: {
         apikey: SERVICE_ROLE_KEY,
@@ -43,9 +43,18 @@ export async function handler(event) {
       },
     }
   );
+  if (!profileRes.ok) {
+    const txt = await profileRes.text().catch(() => '');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: `No se pudo verificar rol admin (users): ${profileRes.status} ${txt}`,
+      }),
+    };
+  }
   const requesterProfiles = await profileRes.json().catch(() => []);
-  const requesterRole = requesterProfiles?.[0]?.role;
-  if (requesterRole !== 'admin') {
+  const isAdmin = Array.isArray(requesterProfiles) && requesterProfiles.length > 0;
+  if (!isAdmin) {
     return { statusCode: 403, body: JSON.stringify({ error: 'Solo admins pueden crear usuarios' }) };
   }
 
