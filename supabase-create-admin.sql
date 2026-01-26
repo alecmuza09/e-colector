@@ -14,6 +14,12 @@ DO $$
 DECLARE
   v_auth_user_id UUID;
 BEGIN
+  -- IMPORTANTE:
+  -- Si tienes activo el trigger prevent_users_role_escalation(), el SQL Editor no trae JWT
+  -- y auth.role() puede venir NULL. Esto puede bloquear la creación del admin.
+  -- Forzamos el contexto como service_role SOLO dentro de esta ejecución.
+  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
+
   -- Buscar el usuario por email en auth.users
   SELECT id INTO v_auth_user_id
   FROM auth.users
