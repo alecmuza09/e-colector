@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Settings,
   Bell,
@@ -15,8 +15,18 @@ import {
   ToggleRight,
   Trash2
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import AdminConsole from './admin/AdminConsole';
+import { supabase } from '../lib/supabase';
 
 export default function Configuracion() {
+  const { userRole, userProfile, refreshProfile } = useAuth();
+
+  // Panel administrativo SOLO para admin
+  if (userRole === 'admin') {
+    return <AdminConsole />;
+  }
+
   const [darkMode, setDarkMode] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
@@ -24,15 +34,47 @@ export default function Configuracion() {
   const [saveLocation, setSaveLocation] = useState(true);
 
   const [formData, setFormData] = useState({
-    name: 'Juan Pérez García',
-    email: 'juan@example.com',
-    phone: '+52 81 1234 5678',
-    location: 'Monterrey, NL',
-    bio: 'Recolector de materiales reciclables con 5 años de experiencia',
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    bio: '',
   });
 
   const handleInputChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
+  };
+
+  useEffect(() => {
+    if (!userProfile) return;
+    setFormData((prev) => ({
+      ...prev,
+      name: userProfile.full_name || '',
+      email: userProfile.email || '',
+      phone: userProfile.phone_number || '',
+      location: userProfile.city || '',
+    }));
+    // Perfil privado = public_profile false
+    setPrivateProfile(userProfile.public_profile === false);
+  }, [userProfile]);
+
+  const handleSaveProfile = async () => {
+    if (!userProfile) return;
+    const { error } = await supabase
+      .from('users')
+      .update({
+        full_name: formData.name,
+        phone_number: formData.phone || null,
+        city: formData.location || null,
+        public_profile: !privateProfile,
+      })
+      .eq('id', userProfile.id);
+    if (error) {
+      alert(error.message || 'Error guardando cambios');
+      return;
+    }
+    await refreshProfile();
+    alert('Cambios guardados');
   };
 
   const notificationSettings = [
@@ -179,7 +221,10 @@ export default function Configuracion() {
               />
             </div>
 
-            <button className="w-full md:w-auto px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
+            <button
+              onClick={handleSaveProfile}
+              className="w-full md:w-auto px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            >
               <Save className="w-5 h-5" />
               Guardar Cambios
             </button>

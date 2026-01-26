@@ -1,62 +1,158 @@
-import React, { useState } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, Paperclip, Smile } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, Send, Phone, Video, MoreVertical, Paperclip, Smile, Loader } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
-interface Conversation {
-  id: string;
-  name: string;
-  avatar: string;
-  lastMessage: string;
-  timestamp: string;
-  unread: number;
-  online: boolean;
-}
+type UserMini = { full_name?: string | null; email?: string | null };
 
-interface Message {
+type MessageRow = {
   id: string;
-  sender: string;
+  sender_id: string;
+  receiver_id: string;
+  subject: string | null;
   content: string;
-  timestamp: string;
-  isOwn: boolean;
-}
+  read: boolean;
+  created_at: string;
+  sender?: UserMini | null;
+  receiver?: UserMini | null;
+};
+
+type Conversation = {
+  otherUserId: string;
+  name: string;
+  lastMessage: string;
+  lastAt: string;
+  unread: number;
+};
 
 export default function Mensajes() {
-  const [selectedConversation, setSelectedConversation] = useState<string>('1');
+  const { isAuthenticated, userProfile } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [messageInput, setMessageInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', sender: 'Juan', content: '¿Cuándo puedes entregar el material?', timestamp: '14:30', isOwn: false },
-    { id: '2', sender: 'Tú', content: 'Mañana a las 10 AM en Monterrey', timestamp: '14:32', isOwn: true },
-    { id: '3', sender: 'Juan', content: '¡Perfecto! ¿Cuál es tu ubicación exacta?', timestamp: '14:33', isOwn: false },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<MessageRow[]>([]);
+  const [selectedOtherUserId, setSelectedOtherUserId] = useState<string | null>(null);
 
-  const conversations: Conversation[] = [
-    { id: '1', name: 'Juan García', avatar: '👨‍💼', lastMessage: '¿Cuál es tu ubicación exacta?', timestamp: 'Hace 2 min', unread: 1, online: true },
-    { id: '2', name: 'María López', avatar: '👩‍💼', lastMessage: 'Recibido, muchas gracias', timestamp: 'Hace 1h', unread: 0, online: false },
-    { id: '3', name: 'Carlos Ruiz', avatar: '👨‍🔧', lastMessage: 'El material está verificado', timestamp: 'Hace 3h', unread: 0, online: true },
-    { id: '4', name: 'Ana Martínez', avatar: '👩‍🌾', lastMessage: 'Interesado en cartón y papel', timestamp: 'Ayer', unread: 2, online: true },
-  ];
+  const myId = userProfile?.id;
 
-  const handleSendMessage = () => {
-    if (messageInput.trim()) {
-      setMessages([
-        ...messages,
-        {
-          id: Date.now().toString(),
-          sender: 'Tú',
-          content: messageInput,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isOwn: true,
-        },
-      ]);
-      setMessageInput('');
+  const loadMessages = async () => {
+    if (!myId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id,sender_id,receiver_id,subject,content,read,created_at,sender:sender_id(full_name,email),receiver:receiver_id(full_name,email)')
+        .or(`sender_id.eq.${myId},receiver_id.eq.${myId}`)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      setRows((data || []) as any);
+      // Auto-seleccionar conversación más reciente
+      if (!selectedOtherUserId) {
+        const last = (data || []).slice().sort((a: any, b: any) => (a.created_at > b.created_at ? -1 : 1))[0];
+        if (last) {
+          const other = last.sender_id === myId ? last.receiver_id : last.sender_id;
+          setSelectedOtherUserId(other);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading messages:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    if (!myId) return;
+    loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myId]);
 
-  const currentConversation = conversations.find(c => c.id === selectedConversation);
+  const conversations = useMemo<Conversation[]>(() => {
+    if (!myId) return [];
+    const map = new Map<string, Conversation>();
+    for (const m of rows) {
+      const otherId = m.sender_id === myId ? m.receiver_id : m.sender_id;
+      const otherName =
+        (m.sender_id === otherId ? m.sender?.full_name || m.sender?.email : m.receiver?.full_name || m.receiver?.email) ||
+        'Usuario';
+
+      const existing = map.get(otherId);
+      const unread = m.receiver_id === myId && m.sender_id === otherId && !m.read ? 1 : 0;
+      if (!existing) {
+        map.set(otherId, {
+          otherUserId: otherId,
+          name: otherName,
+          lastMessage: m.content,
+          lastAt: m.created_at,
+          unread,
+        });
+      } else {
+        // last message
+        if (m.created_at >= existing.lastAt) {
+          existing.lastAt = m.created_at;
+          existing.lastMessage = m.content;
+        }
+        existing.unread += unread;
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => (a.lastAt > b.lastAt ? -1 : 1));
+  }, [rows, myId]);
+
+  const filteredConversations = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return conversations;
+    return conversations.filter((c) => c.name.toLowerCase().includes(term));
+  }, [conversations, searchTerm]);
+
+  const currentMessages = useMemo(() => {
+    if (!myId || !selectedOtherUserId) return [];
+    return rows.filter(
+      (m) =>
+        (m.sender_id === myId && m.receiver_id === selectedOtherUserId) ||
+        (m.sender_id === selectedOtherUserId && m.receiver_id === myId)
+    );
+  }, [rows, myId, selectedOtherUserId]);
+
+  const currentConversation = useMemo(() => {
+    if (!selectedOtherUserId) return null;
+    return conversations.find((c) => c.otherUserId === selectedOtherUserId) || null;
+  }, [conversations, selectedOtherUserId]);
+
+  // Marcar como leídos los mensajes entrantes del otro usuario al abrir conversación
+  useEffect(() => {
+    const markRead = async () => {
+      if (!myId || !selectedOtherUserId) return;
+      const unreadIds = currentMessages
+        .filter((m) => m.receiver_id === myId && m.sender_id === selectedOtherUserId && !m.read)
+        .map((m) => m.id);
+      if (unreadIds.length === 0) return;
+      const { error } = await supabase.from('messages').update({ read: true }).in('id', unreadIds);
+      if (!error) {
+        setRows((prev) => prev.map((m) => (unreadIds.includes(m.id) ? { ...m, read: true } : m)));
+      }
+    };
+    markRead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOtherUserId]);
+
+  const handleSendMessage = async () => {
+    if (!myId || !selectedOtherUserId) return;
+    if (!messageInput.trim()) return;
+    const content = messageInput.trim();
+    setMessageInput('');
+    const { error } = await supabase.from('messages').insert({
+      sender_id: myId,
+      receiver_id: selectedOtherUserId,
+      content,
+      subject: null,
+      read: false,
+    });
+    if (error) {
+      alert(error.message || 'Error enviando mensaje');
+      return;
+    }
+    await loadMessages();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
@@ -85,29 +181,36 @@ export default function Mensajes() {
 
           {/* Conversations */}
           <div className="flex-1 overflow-y-auto">
-            {filteredConversations.map((conversation) => (
+            {loading ? (
+              <div className="p-6 text-center text-gray-500">
+                <Loader className="w-5 h-5 animate-spin mx-auto mb-2" />
+                Cargando...
+              </div>
+            ) : (
+              filteredConversations.map((conversation) => (
               <button
-                key={conversation.id}
-                onClick={() => setSelectedConversation(conversation.id)}
+                key={conversation.otherUserId}
+                onClick={() => setSelectedOtherUserId(conversation.otherUserId)}
                 className={`w-full px-4 py-3 border-b border-gray-100 dark:border-gray-700 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start gap-3 ${
-                  selectedConversation === conversation.id
+                  selectedOtherUserId === conversation.otherUserId
                     ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-4 border-l-emerald-600'
                     : ''
                 }`}
               >
                 {/* Avatar with Online Status */}
                 <div className="relative">
-                  <div className="text-3xl">{conversation.avatar}</div>
-                  {conversation.online && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
-                  )}
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    {(conversation.name || 'U').slice(0, 1).toUpperCase()}
+                  </div>
                 </div>
 
                 {/* Message Info */}
                 <div className="flex-1 text-left min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-gray-900 dark:text-white truncate">{conversation.name}</p>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0">{conversation.timestamp}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0">
+                      {new Date(conversation.lastAt).toLocaleDateString('es-MX')}
+                    </span>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{conversation.lastMessage}</p>
                 </div>
@@ -119,7 +222,8 @@ export default function Mensajes() {
                   </div>
                 )}
               </button>
-            ))}
+            ))
+            )}
           </div>
         </div>
 
@@ -129,12 +233,12 @@ export default function Mensajes() {
             {/* Chat Header */}
             <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 flex items-center justify-between text-white">
               <div className="flex items-center gap-3">
-                <div className="text-3xl">{currentConversation.avatar}</div>
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold">
+                  {(currentConversation.name || 'U').slice(0, 1).toUpperCase()}
+                </div>
                 <div>
                   <h3 className="font-semibold">{currentConversation.name}</h3>
-                  <p className="text-xs text-emerald-100">
-                    {currentConversation.online ? 'En línea' : 'Desconectado'}
-                  </p>
+                  <p className="text-xs text-emerald-100">Conversación</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -152,14 +256,16 @@ export default function Mensajes() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-700/50">
-              {messages.map((message) => (
+              {currentMessages.map((message) => {
+                const isOwn = message.sender_id === myId;
+                return (
                 <div
                   key={message.id}
-                  className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
                     className={`max-w-xs px-4 py-2 rounded-2xl ${
-                      message.isOwn
+                      isOwn
                         ? 'bg-emerald-600 text-white rounded-br-none'
                         : 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-white rounded-bl-none'
                     }`}
@@ -167,14 +273,14 @@ export default function Mensajes() {
                     <p className="text-sm">{message.content}</p>
                     <p
                       className={`text-xs mt-1 ${
-                        message.isOwn ? 'text-emerald-100' : 'text-gray-600 dark:text-gray-400'
+                        isOwn ? 'text-emerald-100' : 'text-gray-600 dark:text-gray-400'
                       }`}
                     >
-                      {message.timestamp}
+                      {new Date(message.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
             {/* Input Area */}
@@ -186,7 +292,7 @@ export default function Mensajes() {
                 type="text"
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSendMessage();
                 }}
                 placeholder="Escribe un mensaje..."

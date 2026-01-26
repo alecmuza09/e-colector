@@ -12,6 +12,9 @@ interface UserProfile {
   city?: string;
   profile_picture_url?: string;
   is_verified: boolean;
+  public_profile?: boolean;
+  terms_accepted?: boolean;
+  profile_data?: any;
 }
 
 interface AuthContextType {

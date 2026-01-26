@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import {
   Home,
   Map,
@@ -16,7 +17,6 @@ import {
   X,
   Bell,
   Search,
-  Shield
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -24,8 +24,10 @@ const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { userRole, logout, isAuthenticated } = useAuth();
-  const isAdmin = userRole === 'admin';
+  const { userRole, logout, isAuthenticated, userProfile } = useAuth();
+  const [unreadMessages, setUnreadMessages] = useState<number>(0);
+  const [favoritesCount, setFavoritesCount] = useState<number>(0);
+  const [newMaterials, setNewMaterials] = useState<number>(0);
 
   const navItems = [
     { label: 'Inicio', icon: Home, path: '/' },
@@ -36,13 +38,55 @@ const Sidebar = () => {
   ];
 
   const secondaryItems = [
-    ...(isAdmin ? [{ label: 'Administración', icon: Shield, path: '/perfil' }] : []),
     { label: 'Estadísticas', icon: BarChart3, path: '/estadisticas' },
     { label: 'Perfil', icon: User, path: '/perfil' },
-    { label: 'Configuración', icon: Settings, path: '/configuracion' },
+    { label: 'Configuración', icon: Settings, path: '/configuracion' }, // en admin aquí vive el panel administrativo
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  React.useEffect(() => {
+    const loadCounts = async () => {
+      if (!isAuthenticated || !userProfile) {
+        setUnreadMessages(0);
+        setFavoritesCount(0);
+        setNewMaterials(0);
+        return;
+      }
+      try {
+        const { count: msgCount } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('receiver_id', userProfile.id)
+          .eq('read', false);
+        setUnreadMessages(msgCount || 0);
+
+        const { count: favCount } = await supabase
+          .from('favorites')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userProfile.id);
+        setFavoritesCount(favCount || 0);
+
+        // "Nuevos materiales en tu zona" = productos activos en las últimas 24h y mismo municipio (si hay ciudad)
+        if (userProfile.city) {
+          const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          const { count: prodCount } = await supabase
+            .from('products')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'activo')
+            .gte('created_at', since)
+            .eq('municipality', userProfile.city);
+          setNewMaterials(prodCount || 0);
+        } else {
+          setNewMaterials(0);
+        }
+      } catch (e) {
+        console.error('Error loading sidebar counts:', e);
+      }
+    };
+
+    loadCounts();
+  }, [isAuthenticated, userProfile?.id, userProfile?.city]);
 
   return (
     <>
@@ -99,13 +143,13 @@ const Sidebar = () => {
         )}
 
         {/* Notifications Badge */}
-        {!isCollapsed && (
+        {!isCollapsed && isAuthenticated && (
           <div className="mx-6 mt-4 p-3 bg-emerald-700/50 rounded-lg border border-emerald-600 flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold">3 nuevos</p>
+              <p className="text-sm font-semibold">{newMaterials} nuevos</p>
               <p className="text-xs text-emerald-200">materiales en tu zona</p>
             </div>
           </div>
@@ -129,9 +173,14 @@ const Sidebar = () => {
               {!isCollapsed && (
                 <>
                   <span className="font-medium">{item.label}</span>
-                  {item.label === 'Mensajes' && (
+                  {item.label === 'Mensajes' && unreadMessages > 0 && (
                     <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                      2
+                      {unreadMessages}
+                    </span>
+                  )}
+                  {item.label === 'Favoritos' && favoritesCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {favoritesCount}
                     </span>
                   )}
                 </>
@@ -168,15 +217,6 @@ const Sidebar = () => {
         {/* Footer */}
         {!isCollapsed && (
           <div className="p-4 border-t border-emerald-700 space-y-3">
-            <div className="bg-emerald-700/50 rounded-lg p-3">
-              <p className="text-xs text-emerald-200 mb-2">Impacto Ambiental</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-2 bg-emerald-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 w-3/4"></div>
-                </div>
-                <span className="text-xs font-bold text-emerald-300">75%</span>
-              </div>
-            </div>
             <button
               onClick={async () => {
                 try {
