@@ -18,13 +18,51 @@ import {
 import { useAuth } from '../context/AuthContext';
 import AdminConsole from './admin/AdminConsole';
 import { supabase } from '../lib/supabase';
+import { UserRole } from '../types/user';
+import { Link } from 'react-router-dom';
 
 export default function Configuracion() {
-  const { userRole, userProfile, refreshProfile } = useAuth();
+  const { userRole, userProfile, refreshProfile, isAuthenticated, loading, user } = useAuth();
 
   // Panel administrativo SOLO para admin
-  if (userRole === 'admin') {
+  if (userRole === UserRole.ADMIN) {
     return <AdminConsole />;
+  }
+
+  // Si está autenticado pero no existe perfil en public.users
+  if (!loading && isAuthenticated && !userProfile) {
+    const isAdminEmail = (user?.email || '').toLowerCase() === 'alec.muza@capacit.io';
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-6">
+        <div className="max-w-2xl w-full bg-white rounded-2xl border border-emerald-200 p-6 shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-900">Configuración no disponible</h1>
+          <p className="text-gray-600 mt-2">
+            Tu sesión está iniciada, pero no existe tu fila en <code>public.users</code>. Sin perfil no podemos cargar tus ajustes.
+          </p>
+          <div className="mt-4 text-sm text-gray-700 space-y-1">
+            <div>
+              <span className="font-semibold">Email:</span> {user?.email || '—'}
+            </div>
+            <div>
+              <span className="font-semibold">Auth UID:</span> {user?.id || '—'}
+            </div>
+          </div>
+          {isAdminEmail && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-4 text-sm">
+              Ejecuta <code>supabase-create-admin.sql</code> en Supabase para crear/actualizar tu perfil admin.
+            </div>
+          )}
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <button onClick={refreshProfile} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+              Reintentar
+            </button>
+            <Link to="/perfil" className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-center">
+              Ir a Perfil
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const [darkMode, setDarkMode] = useState(true);
