@@ -425,6 +425,11 @@ const ExploreMapLeaflet = () => {
                         {product.verified && <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verificado</span>}
                       </div>
                       <p className="text-gray-500 text-xs flex items-center gap-1"><MapPin className="w-3 h-3" /> {product.location}</p>
+                      {product.address && (
+                        <p className="text-gray-500 text-xs">
+                          {product.address}
+                        </p>
+                      )}
                       <Link to={`/listado/${product.id}`} className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors text-center block text-xs">
                         Ver detalles completos
                       </Link>

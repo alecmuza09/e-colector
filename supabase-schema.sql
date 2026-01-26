@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   longitude DECIMAL(11, 8),
   tags TEXT[] DEFAULT '{}',
   image_url TEXT,
+  image_urls TEXT[] DEFAULT '{}',
   verified BOOLEAN DEFAULT false,
   type TEXT NOT NULL CHECK (type IN ('venta', 'donacion')) DEFAULT 'venta',
   status TEXT DEFAULT 'activo' CHECK (status IN ('activo', 'vendido', 'expirado', 'cancelado')),

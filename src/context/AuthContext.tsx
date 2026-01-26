@@ -25,7 +25,11 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    userData: any
+  ) => Promise<{ error: any; needsEmailVerification?: boolean }>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -39,6 +43,73 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+
+  const PENDING_PROFILE_KEY = 'ecolector_pending_profile_v1';
+
+  const savePendingProfile = (payload: any) => {
+    try {
+      localStorage.setItem(PENDING_PROFILE_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore
+    }
+  };
+
+  const loadPendingProfile = (): any | null => {
+    try {
+      const raw = localStorage.getItem(PENDING_PROFILE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+
+  const clearPendingProfile = () => {
+    try {
+      localStorage.removeItem(PENDING_PROFILE_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  const ensureProfileFromPending = async (authUserId: string, email?: string | null) => {
+    try {
+      const { data: existing, error: existingErr } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+
+      if (existingErr && existingErr.code !== 'PGRST116') {
+        // PGRST116 = no rows (maybeSingle)
+        throw existingErr;
+      }
+      if (existing?.id) return;
+
+      const pending = loadPendingProfile();
+      if (!pending) return;
+      if (pending?.email && email && String(pending.email).toLowerCase() !== String(email).toLowerCase()) {
+        // No usar un pending de otro correo
+        return;
+      }
+
+      const { error: profileError } = await supabase.from('users').insert({
+        auth_user_id: authUserId,
+        role: pending.role,
+        full_name: pending.name,
+        email: pending.email,
+        phone_number: pending.phone,
+        city: pending.city,
+        terms_accepted: pending.termsAccepted,
+        profile_data: pending.additionalData || {},
+      });
+
+      if (profileError) throw profileError;
+      clearPendingProfile();
+    } catch (e) {
+      console.error('Error ensuring profile from pending:', e);
+    }
+  };
 
   // Procesa links de Supabase tipo "#access_token=...&refresh_token=..."
   const hydrateSessionFromUrl = async () => {
@@ -72,6 +143,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(session?.user ?? null);
         setIsAuthenticated(!!session?.user);
         if (session?.user) {
+          await ensureProfileFromPending(session.user.id, session.user.email);
           await loadUserProfile(session.user.id);
         } else {
           setLoading(false);
@@ -91,7 +163,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session?.user);
       if (session?.user) {
-        loadUserProfile(session.user.id);
+        ensureProfileFromPending(session.user.id, session.user.email).finally(() => {
+          loadUserProfile(session.user.id);
+        });
       } else {
         setUserProfile(null);
         setUserRole(null);
@@ -151,6 +225,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Registro
   const signUp = async (email: string, password: string, userData: any) => {
     try {
+      // Guardar pending profile: si el signup requiere confirmación por email,
+      // lo usaremos al regresar en /auth/callback para crear el perfil.
+      savePendingProfile({
+        name: userData?.name,
+        email,
+        role: userData?.role,
+        phone: userData?.phone,
+        city: userData?.city,
+        termsAccepted: userData?.termsAccepted,
+        additionalData: userData?.additionalData || {},
+      });
+
       // Crear usuario en auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -165,28 +251,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { error: authError };
       }
 
+      // Si no hay sesión, Supabase está esperando verificación por email.
+      // En ese caso no podremos insertar el perfil por RLS (auth.uid() es null).
+      if (!authData.session) {
+        return { error: null, needsEmailVerification: true };
+      }
+
+      // Con sesión activa, intentamos crear perfil inmediatamente
       if (authData.user) {
-        // Crear perfil en la tabla users
-        const { error: profileError } = await supabase.from('users').insert({
-          auth_user_id: authData.user.id,
-          role: userData.role,
-          full_name: userData.name,
-          email: email,
-          phone_number: userData.phone,
-          city: userData.city,
-          terms_accepted: userData.termsAccepted,
-          profile_data: userData.additionalData || {},
-        });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          return { error: profileError };
-        }
-
+        await ensureProfileFromPending(authData.user.id, authData.user.email);
         await loadUserProfile(authData.user.id);
       }
 
-      return { error: null };
+      return { error: null, needsEmailVerification: false };
     } catch (error: any) {
       return { error };
     }

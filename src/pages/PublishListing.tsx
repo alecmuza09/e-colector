@@ -1,10 +1,14 @@
-import React, { useState, ChangeEvent, FormEvent } from 'react';
+import React, { useEffect, useMemo, useState, ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, AlertCircle, CheckCircle } from 'lucide-react';
-import { Product } from '../data/mockProducts';
 import { createProduct } from '../services/products';
 import { useAuth } from '../context/AuthContext';
 import { MUNICIPALITY_NAMES, getMunicipalityByName, getRandomCoordinates } from '../config/municipalities';
+import { uploadProductImages } from '../services/storage';
+import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { supabase } from '../lib/supabase';
 
 // Interfaz simplificada para los datos del formulario
 interface ListingFormData {
@@ -34,7 +38,8 @@ interface FormErrors {
 }
 
 // Opciones de categoría
-const CATEGORIES = ['PET', 'Cartón', 'Vidrio', 'Metal', 'Papel', 'Plástico (Otros)', 'Electrónicos', 'Otros'];
+// Debe coincidir con el CHECK constraint en public.products.category
+const CATEGORIES = ['PET', 'Cartón', 'Vidrio', 'Metal', 'Papel', 'Electrónicos', 'HDPE', 'Otros'];
 const UNITS = ['kg', 'Ton'];
 
 const PublishListing = () => {
@@ -54,6 +59,19 @@ const PublishListing = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [files, setFiles] = useState<File[]>([]);
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number }>(() => ({
+    latitude: 25.6866,
+    longitude: -100.3161,
+  }));
+
+  const previewUrls = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
+  useEffect(() => {
+    return () => {
+      // liberar blobs
+      for (const url of previewUrls) URL.revokeObjectURL(url);
+    };
+  }, [previewUrls]);
 
   // Redirigir si no está autenticado
   React.useEffect(() => {
@@ -61,6 +79,37 @@ const PublishListing = () => {
       navigate('/login');
     }
   }, [isAuthenticated, navigate]);
+
+  // Ajusta coordenadas base al seleccionar municipio (el usuario puede afinar en el mapa)
+  React.useEffect(() => {
+    if (!formData.municipality) return;
+    const municipality = getMunicipalityByName(formData.municipality);
+    const c = municipality ? getRandomCoordinates(municipality) : { latitude: 25.6866, longitude: -100.3161 };
+    setCoords({ latitude: c.latitude, longitude: c.longitude });
+  }, [formData.municipality]);
+
+  const handleFilesChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    setFiles(picked);
+  };
+
+  const MapPicker = () => {
+    useMapEvents({
+      click(e) {
+        setCoords({ latitude: e.latlng.lat, longitude: e.latlng.lng });
+      },
+    });
+    return null;
+  };
+
+  const markerIcon = useMemo(() => {
+    return L.divIcon({
+      html: `<div style="background:#10B981;border:3px solid white;border-radius:9999px;width:18px;height:18px;box-shadow:0 4px 10px rgba(0,0,0,0.25)"></div>`,
+      className: '',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+  }, []);
 
   // --- Handlers --- //
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -113,9 +162,17 @@ const PublishListing = () => {
       // Combinar título, cantidad y unidad
       const combinedTitle = `${formData.title.trim()} (${formData.quantity} ${formData.unit})`;
 
-      // Obtener coordenadas del municipio seleccionado
-      const municipality = getMunicipalityByName(formData.municipality);
-      const coordinates = municipality ? getRandomCoordinates(municipality) : { latitude: 25.6751, longitude: -100.3185 };
+      // Subir fotos a Supabase Storage (si el usuario adjuntó)
+      let imageUrls: string[] = [];
+      if (files.length > 0) {
+        const authUserId = (await supabase.auth.getUser()).data.user?.id;
+        if (!authUserId) throw new Error('Usuario no autenticado para subir imágenes');
+        imageUrls = await uploadProductImages({
+          files,
+          authUserId,
+          productTempKey: `${Date.now()}-${formData.title.trim()}`,
+        });
+      }
 
       // Crear nueva publicación en Supabase
       const newProduct = await createProduct({
@@ -128,10 +185,11 @@ const PublishListing = () => {
         location: `📍 ${formData.municipality}`,
         municipality: formData.municipality,
         address: formData.address.trim(),
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
         tags: [formData.category.toLowerCase(), 'nuevo'],
-        image_url: `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(formData.title)}`,
+        image_url: imageUrls[0] || `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(formData.title)}`,
+        image_urls: imageUrls.length > 0 ? imageUrls : undefined,
         type: formData.type as 'venta' | 'donacion',
       });
 
@@ -140,6 +198,7 @@ const PublishListing = () => {
       
       // Limpiar formulario y redirigir después de un momento
       setFormData({ title: '', category: '', price: '', description: '', quantity: '', unit: '', municipality: '', address: '', type: 'venta' });
+      setFiles([]);
       setTimeout(() => {
           navigate('/dashboard');
       }, 1500);
@@ -255,6 +314,61 @@ const PublishListing = () => {
             <input type="text" id="address" name="address" value={formData.address} onChange={handleChange} required placeholder="Ej: Av. Revolución 123, Col. Centro"
                    className={`w-full p-2 border rounded-lg shadow-sm ${errors.address ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
             {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+          </div>
+
+          {/* Fotos */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fotografías (opcional)</label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFilesChange}
+              className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+            />
+            {previewUrls.length > 0 && (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {previewUrls.slice(0, 6).map((src, idx) => (
+                  <img key={idx} src={src} className="h-20 w-full object-cover rounded border" alt={`preview-${idx}`} />
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-2">
+              Las fotos se suben a Supabase Storage (bucket <code>product-images</code>).
+            </p>
+          </div>
+
+          {/* Ubicación en mapa (pin) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación en el mapa</label>
+            <div className="rounded-lg overflow-hidden border border-gray-200">
+              <MapContainer
+                center={[coords.latitude, coords.longitude]}
+                zoom={14}
+                scrollWheelZoom={true}
+                style={{ height: 240, width: '100%' }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <MapPicker />
+                <Marker
+                  position={[coords.latitude, coords.longitude]}
+                  icon={markerIcon}
+                  draggable
+                  eventHandlers={{
+                    dragend: (e) => {
+                      const latlng = (e.target as any).getLatLng();
+                      setCoords({ latitude: latlng.lat, longitude: latlng.lng });
+                    },
+                  }}
+                />
+              </MapContainer>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Puedes mover el pin para ajustar la ubicación exacta (clic en el mapa o arrastrar el marcador).
+            </p>
           </div>
           
           {/* Descripción */}

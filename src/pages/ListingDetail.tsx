@@ -75,7 +75,7 @@ const ListingDetail = () => {
     );
   }
 
-  const images = [product.imageUrl];
+  const images = (product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls : [product.imageUrl]).filter(Boolean);
 
   const handlePrevImage = () => {
     setCurrentImageIndex((prev) => 

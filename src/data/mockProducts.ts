@@ -10,6 +10,7 @@ export interface Product {
   category: 'PET' | 'Cartón' | 'Vidrio' | 'Metal' | 'Electrónicos' | 'Otros' | 'Papel' | 'HDPE';
   tags: string[];
   imageUrl: string;
+  imageUrls?: string[];
   latitude: number;
   longitude: number;
   verified: boolean;

@@ -18,6 +18,7 @@ export interface ProductFromDB {
   longitude: number | null;
   tags: string[] | null;
   image_url: string | null;
+  image_urls?: string[] | null;
   verified: boolean;
   type: 'venta' | 'donacion';
   status: string;
@@ -27,6 +28,11 @@ export interface ProductFromDB {
 
 // Convertir producto de DB a formato de la app
 export const mapProductFromDB = (dbProduct: ProductFromDB): Product => {
+  const imageUrls = (dbProduct.image_urls || []).filter(Boolean) as string[];
+  const primaryImage =
+    imageUrls[0] ||
+    dbProduct.image_url ||
+    `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(dbProduct.title)}`;
   return {
     id: dbProduct.id,
     title: dbProduct.title,
@@ -38,7 +44,8 @@ export const mapProductFromDB = (dbProduct: ProductFromDB): Product => {
     address: dbProduct.address || '',
     category: (dbProduct.category as any) || 'Otros',
     tags: dbProduct.tags || [],
-    imageUrl: dbProduct.image_url || `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(dbProduct.title)}`,
+    imageUrl: primaryImage,
+    imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
     latitude: dbProduct.latitude || 25.6751,
     longitude: dbProduct.longitude || -100.3185,
     verified: dbProduct.verified,
@@ -98,6 +105,7 @@ export const createProduct = async (productData: {
   longitude?: number;
   tags?: string[];
   image_url?: string;
+  image_urls?: string[];
   type?: 'venta' | 'donacion';
 }): Promise<Product | null> => {
   try {
@@ -113,19 +121,25 @@ export const createProduct = async (productData: {
 
     if (!userProfile) throw new Error('Perfil de usuario no encontrado');
 
-    const { data, error } = await supabase
-      .from('products')
-      .insert({
-        user_id: userProfile.id,
-        ...productData,
-        status: 'activo',
-      })
-      .select()
-      .single();
+    const baseInsert: any = {
+      user_id: userProfile.id,
+      ...productData,
+      status: 'activo',
+    };
+
+    // Intento 1: con image_urls (si existe en el esquema)
+    let { data, error } = await supabase.from('products').insert(baseInsert).select().single();
+
+    // Fallback: si la columna image_urls no existe todavía, reintenta sin ella
+    if (error && String((error as any)?.message || '').toLowerCase().includes('image_urls')) {
+      const { image_urls, ...rest } = baseInsert;
+      const retry = await supabase.from('products').insert(rest).select().single();
+      data = retry.data as any;
+      error = retry.error as any;
+    }
 
     if (error) throw error;
-
-    return mapProductFromDB(data);
+    return mapProductFromDB(data as any);
   } catch (error) {
     console.error('Error creating product:', error);
     throw error;
