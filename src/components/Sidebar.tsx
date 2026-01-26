@@ -117,7 +117,7 @@ const Sidebar = () => {
           {!isCollapsed && (
             <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               {/* Logo Image */}
-              <img src="/assets/images/logo.svg" alt="e-colector" className="w-12 h-12 object-contain" />
+              <img src="/assets/images/logo-color.png" alt="E-colector" className="w-12 h-12 object-contain" />
             </Link>
           )}
           <button

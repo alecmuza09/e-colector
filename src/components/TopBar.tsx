@@ -9,7 +9,7 @@ export default function TopBar() {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           {/* Logo Image */}
-          <img src="/assets/images/logo.svg" alt="e-colector" className="h-10 object-contain" />
+          <img src="/assets/images/logo-white.png" alt="E-colector" className="h-10 object-contain" />
         </Link>
 
         {/* Tagline - Hidden on small screens */}
