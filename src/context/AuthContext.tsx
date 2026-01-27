@@ -25,11 +25,7 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (
-    email: string,
-    password: string,
-    userData: any
-  ) => Promise<{ error: any; needsEmailVerification?: boolean }>;
+  signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -251,19 +247,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { error: authError };
       }
 
-      // Si no hay sesión, Supabase está esperando verificación por email.
-      // En ese caso no podremos insertar el perfil por RLS (auth.uid() es null).
-      if (!authData.session) {
-        return { error: null, needsEmailVerification: true };
+      // Objetivo: que el registro funcione SIN verificación por correo, iniciando sesión automáticamente.
+      // Si Supabase está configurado sin confirmación, authData.session viene listo.
+      // Si NO viene sesión, intentamos login inmediatamente con correo/contraseña.
+      const sessionUser = authData.session?.user;
+      if (sessionUser) {
+        await ensureProfileFromPending(sessionUser.id, sessionUser.email);
+        await loadUserProfile(sessionUser.id);
+        return { error: null };
       }
 
-      // Con sesión activa, intentamos crear perfil inmediatamente
-      if (authData.user) {
-        await ensureProfileFromPending(authData.user.id, authData.user.email);
-        await loadUserProfile(authData.user.id);
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError) {
+        // Si el proyecto todavía exige confirmación de email, aquí fallará.
+        return {
+          error: {
+            message:
+              signInError.message ||
+              'No se pudo iniciar sesión automáticamente tras el registro. Revisa la configuración de confirmación de email en Supabase Auth.',
+          },
+        };
       }
 
-      return { error: null, needsEmailVerification: false };
+      if (signInData.user) {
+        await ensureProfileFromPending(signInData.user.id, signInData.user.email);
+        await loadUserProfile(signInData.user.id);
+      }
+
+      return { error: null };
     } catch (error: any) {
       return { error };
     }

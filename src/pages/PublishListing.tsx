@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState, ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, AlertCircle, CheckCircle } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Loader, MapPin } from 'lucide-react';
 import { createProduct } from '../services/products';
 import { useAuth } from '../context/AuthContext';
 import { MUNICIPALITY_NAMES, getMunicipalityByName, getRandomCoordinates } from '../config/municipalities';
 import { uploadProductImages } from '../services/storage';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabase';
@@ -64,6 +64,12 @@ const PublishListing = () => {
     latitude: 25.6866,
     longitude: -100.3161,
   }));
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    Array<{ display_name: string; lat: string; lon: string }>
+  >([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
 
   const previewUrls = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
   useEffect(() => {
@@ -88,6 +94,63 @@ const PublishListing = () => {
     setCoords({ latitude: c.latitude, longitude: c.longitude });
   }, [formData.municipality]);
 
+  // Autocompletado/búsqueda de dirección (OpenStreetMap Nominatim)
+  useEffect(() => {
+    const qRaw = formData.address?.trim();
+    if (!qRaw || qRaw.length < 4) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      setAddressError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const t = window.setTimeout(async () => {
+      try {
+        setAddressLoading(true);
+        setAddressError(null);
+
+        const locationHint = formData.municipality
+          ? `${formData.municipality}, Nuevo León, México`
+          : 'Monterrey, Nuevo León, México';
+        const q = `${qRaw}, ${locationHint}`;
+
+        const url = new URL('https://nominatim.openstreetmap.org/search');
+        url.searchParams.set('format', 'jsonv2');
+        url.searchParams.set('addressdetails', '1');
+        url.searchParams.set('limit', '6');
+        url.searchParams.set('q', q);
+
+        const res = await fetch(url.toString(), {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Accept-Language': 'es',
+          },
+        });
+        if (!res.ok) throw new Error('No se pudo buscar la dirección');
+        const json = (await res.json()) as any[];
+        const items = (json || []).map((r) => ({
+          display_name: String(r.display_name || ''),
+          lat: String(r.lat || ''),
+          lon: String(r.lon || ''),
+        }));
+        setAddressSuggestions(items.filter((x) => x.display_name && x.lat && x.lon));
+        setShowAddressSuggestions(true);
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+        setAddressError(e?.message || 'Error buscando la dirección');
+      } finally {
+        setAddressLoading(false);
+      }
+    }, 450);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(t);
+    };
+  }, [formData.address, formData.municipality]);
+
   const handleFilesChange = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
     setFiles(picked);
@@ -99,6 +162,15 @@ const PublishListing = () => {
         setCoords({ latitude: e.latlng.lat, longitude: e.latlng.lng });
       },
     });
+    return null;
+  };
+
+  const MapRecenter = ({ latitude, longitude }: { latitude: number; longitude: number }) => {
+    const map = useMap();
+    useEffect(() => {
+      map.setView([latitude, longitude], map.getZoom(), { animate: true });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [latitude, longitude]);
     return null;
   };
 
@@ -119,6 +191,12 @@ const PublishListing = () => {
     if (errors[name as keyof FormErrors]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
+  };
+
+  const applyAddressSuggestion = (s: { display_name: string; lat: string; lon: string }) => {
+    setFormData((prev) => ({ ...prev, address: s.display_name }));
+    setCoords({ latitude: Number(s.lat), longitude: Number(s.lon) });
+    setShowAddressSuggestions(false);
   };
 
   // --- Validación --- //
@@ -366,9 +444,45 @@ const PublishListing = () => {
           {/* Dirección */}
           <div>
             <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Dirección <span className="text-red-500">*</span></label>
-            <input type="text" id="address" name="address" value={formData.address} onChange={handleChange} required placeholder="Ej: Av. Revolución 123, Col. Centro"
+            <div className="relative">
+              <input
+                type="text"
+                id="address"
+                name="address"
+                value={formData.address}
+                onChange={(e) => {
+                  handleChange(e);
+                  setShowAddressSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (addressSuggestions.length > 0) setShowAddressSuggestions(true);
+                }}
+                required
+                placeholder="Ej: Av. Revolución 123, Col. Centro"
                    className={`w-full p-2 border rounded-lg shadow-sm ${errors.address ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 flex items-center gap-2">
+                {addressLoading ? <Loader className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+              </div>
+            </div>
             {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+            {addressError && <p className="text-red-500 text-xs mt-1">{addressError}</p>}
+            {showAddressSuggestions && addressSuggestions.length > 0 && (
+              <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                {addressSuggestions.map((s, idx) => (
+                  <button
+                    type="button"
+                    key={`${s.lat}-${s.lon}-${idx}`}
+                    onClick={() => applyAddressSuggestion(s)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 border-b border-gray-100 last:border-b-0"
+                  >
+                    {s.display_name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-2">
+              Sugerencias de dirección por OpenStreetMap. Al elegir una, el mapa coloca un punto estimado.
+            </p>
           </div>
 
           {/* Fotos */}
@@ -407,6 +521,7 @@ const PublishListing = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <MapRecenter latitude={coords.latitude} longitude={coords.longitude} />
                 <MapPicker />
                 <Marker
                   position={[coords.latitude, coords.longitude]}

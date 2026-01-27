@@ -240,14 +240,12 @@ function Register() {
   };
 
   const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccessMsg(null);
 
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden.");
@@ -279,19 +277,12 @@ function Register() {
       additionalData
     };
     
-    const { error: signUpError, needsEmailVerification } = await signUp(email, password, registrationData);
+    const { error: signUpError } = await signUp(email, password, registrationData);
 
     if (signUpError) {
       setError(signUpError.message || 'Error al registrar. Intenta de nuevo.');
       setLoading(false);
     } else {
-      if (needsEmailVerification) {
-        setSuccessMsg(
-          'Cuenta creada. Te enviamos un correo para verificar tu email. Abre el link y al regresar se completará tu perfil automáticamente.'
-        );
-        setLoading(false);
-        return;
-      }
       navigate('/dashboard');
     }
   };
@@ -343,11 +334,6 @@ function Register() {
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                 {error}
-              </div>
-            )}
-            {successMsg && (
-              <div className="bg-emerald-100 border border-emerald-400 text-emerald-800 px-4 py-3 rounded">
-                {successMsg}
               </div>
             )}
 
