@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, ChangeEvent, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Save, AlertCircle, CheckCircle, Loader, MapPin } from 'lucide-react';
-import { createProduct } from '../services/products';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Save, AlertCircle, CheckCircle, Loader, MapPin, Pencil } from 'lucide-react';
+import { createProduct, updateProduct } from '../services/products';
 import { useAuth } from '../context/AuthContext';
 import { MUNICIPALITY_NAMES, getMunicipalityByName, getRandomCoordinates } from '../config/municipalities';
 import { uploadProductImages } from '../services/storage';
@@ -44,6 +44,8 @@ const UNITS = ['kg', 'Ton'];
 
 const PublishListing = () => {
   const navigate = useNavigate();
+  const { id: editingId } = useParams<{ id: string }>();
+  const isEditing = Boolean(editingId);
   const { isAuthenticated, userProfile } = useAuth();
   const [formData, setFormData] = useState<ListingFormData>({
     title: '',
@@ -60,6 +62,8 @@ const PublishListing = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [files, setFiles] = useState<File[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+  const [loadingExisting, setLoadingExisting] = useState(false);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number }>(() => ({
     latitude: 25.6866,
     longitude: -100.3161,
@@ -79,12 +83,92 @@ const PublishListing = () => {
     };
   }, [previewUrls]);
 
+  const stripQtySuffix = (title: string, quantity?: number | null, unit?: string | null) => {
+    const t = String(title || '').trim();
+    const q = quantity != null ? String(quantity) : null;
+    const u = unit ? String(unit) : null;
+    // Caso ideal: coincide con " ... (q u)"
+    if (q && u && t.endsWith(`(${q} ${u})`)) {
+      return t.slice(0, t.lastIndexOf('(')).trim();
+    }
+    // Fallback: regex de último paréntesis
+    const m = t.match(/\s*\(([\d.,]+)\s+(kg|Ton)\)\s*$/);
+    if (m) return t.replace(/\s*\(([\d.,]+)\s+(kg|Ton)\)\s*$/, '').trim();
+    return t;
+  };
+
   // Redirigir si no está autenticado
   React.useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
     }
   }, [isAuthenticated, navigate]);
+
+  // Precargar publicación si estamos editando
+  useEffect(() => {
+    const loadExisting = async () => {
+      if (!isEditing || !editingId || !userProfile) return;
+      setLoadingExisting(true);
+      try {
+        // Compatibilidad: si image_urls no existe, reintentamos sin esa columna
+        const selectWithImages =
+          'id,user_id,title,description,price,currency,category,quantity,unit,municipality,address,latitude,longitude,image_url,image_urls,type,status';
+        const selectWithoutImages =
+          'id,user_id,title,description,price,currency,category,quantity,unit,municipality,address,latitude,longitude,image_url,type,status';
+
+        let data: any = null;
+        let error: any = null;
+        {
+          const r = await supabase.from('products').select(selectWithImages).eq('id', editingId).single();
+          data = r.data as any;
+          error = r.error as any;
+        }
+
+        if (error && String(error.message || '').toLowerCase().includes('image_urls')) {
+          const r2 = await supabase.from('products').select(selectWithoutImages).eq('id', editingId).single();
+          data = r2.data as any;
+          error = r2.error as any;
+        }
+
+        if (error) throw error;
+        if (!data) throw new Error('Publicación no encontrada');
+
+        if (data.user_id !== userProfile.id) {
+          throw new Error('No tienes permisos para editar esta publicación.');
+        }
+
+        const qty = data.quantity != null ? Number(data.quantity) : null;
+        const unit = data.unit ? String(data.unit) : '';
+        const titleClean = stripQtySuffix(String(data.title || ''), qty, unit);
+
+        setFormData({
+          title: titleClean,
+          category: String(data.category || ''),
+          price: String(data.type === 'donacion' ? '' : Number(data.price || 0)),
+          description: String(data.description || ''),
+          quantity: qty != null ? String(qty) : '',
+          unit: (unit as any) || '',
+          municipality: String(data.municipality || ''),
+          address: String(data.address || ''),
+          type: (data.type as any) || 'venta',
+        });
+        setCoords({
+          latitude: Number(data.latitude || 25.6866),
+          longitude: Number(data.longitude || -100.3161),
+        });
+
+        const urls = ((data.image_urls as any) || []).filter(Boolean);
+        const legacy = data.image_url ? [String(data.image_url)] : [];
+        setExistingImageUrls(urls.length > 0 ? urls : legacy);
+      } catch (e: any) {
+        console.error('Error loading listing for edit:', e);
+        setErrors({ general: e?.message || 'No se pudo cargar la publicación para editar.' });
+      } finally {
+        setLoadingExisting(false);
+      }
+    };
+    loadExisting();
+  }, [isEditing, editingId, userProfile?.id]);
 
   // Ajusta coordenadas base al seleccionar municipio (el usuario puede afinar en el mapa)
   React.useEffect(() => {
@@ -241,19 +325,22 @@ const PublishListing = () => {
       const combinedTitle = `${formData.title.trim()} (${formData.quantity} ${formData.unit})`;
 
       // Subir fotos a Supabase Storage (si el usuario adjuntó)
-      let imageUrls: string[] = [];
+      let newImageUrls: string[] = [];
       if (files.length > 0) {
         const authUserId = (await supabase.auth.getUser()).data.user?.id;
         if (!authUserId) throw new Error('Usuario no autenticado para subir imágenes');
-        imageUrls = await uploadProductImages({
+        newImageUrls = await uploadProductImages({
           files,
           authUserId,
           productTempKey: `${Date.now()}-${formData.title.trim()}`,
         });
       }
 
-      // Crear nueva publicación en Supabase
-      const newProduct = await createProduct({
+      const finalImageUrls = [...existingImageUrls, ...newImageUrls].filter(Boolean).slice(0, 10);
+      const primaryImage =
+        finalImageUrls[0] || `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(formData.title)}`;
+
+      const payload = {
         title: combinedTitle,
         category: formData.category,
         price: formData.type === 'venta' ? Number(formData.price) : 0,
@@ -266,16 +353,20 @@ const PublishListing = () => {
         latitude: coords.latitude,
         longitude: coords.longitude,
         tags: [formData.category.toLowerCase(), 'nuevo'],
-        image_url: imageUrls[0] || `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(formData.title)}`,
-        image_urls: imageUrls.length > 0 ? imageUrls : undefined,
+        image_url: primaryImage,
+        image_urls: finalImageUrls.length > 0 ? finalImageUrls : undefined,
         type: formData.type as 'venta' | 'donacion',
-      });
+      };
+
+      // Crear o actualizar en Supabase
+      const newProduct = isEditing && editingId ? await updateProduct(editingId, payload) : await createProduct(payload);
 
       console.log('Publicación guardada en Supabase:', newProduct);
 
       // Notificar a usuarios interesados (in-app vía messages)
       try {
-        if (newProduct?.id && userProfile?.id) {
+        // Solo notificar cuando se crea (no al editar)
+        if (!isEditing && newProduct?.id && userProfile?.id) {
           const categoryToInterest: Record<string, string[]> = {
             PET: ['Plástico'],
             HDPE: ['Plástico'],
@@ -330,9 +421,14 @@ const PublishListing = () => {
       setSubmissionStatus('success');
       
       // Limpiar formulario y redirigir después de un momento
-      setFormData({ title: '', category: '', price: '', description: '', quantity: '', unit: '', municipality: '', address: '', type: 'venta' });
-      setFiles([]);
       setTimeout(() => {
+          if (isEditing && newProduct?.id) {
+            navigate(`/listado/${newProduct.id}`);
+            return;
+          }
+          setFormData({ title: '', category: '', price: '', description: '', quantity: '', unit: '', municipality: '', address: '', type: 'venta' });
+          setFiles([]);
+          setExistingImageUrls([]);
           navigate('/dashboard');
       }, 1500);
 
@@ -350,15 +446,26 @@ const PublishListing = () => {
      return (
        <div className="container mx-auto px-4 py-12 text-center">
             <CheckCircle className="h-16 w-16 text-emerald-500 mx-auto mb-4"/>
-            <h1 className="text-2xl font-bold text-gray-800 mb-3">¡Publicación Guardada!</h1>
-            <p className="text-gray-600 mb-6">Tu material ha sido publicado correctamente. Serás redirigido al dashboard...</p>
+            <h1 className="text-2xl font-bold text-gray-800 mb-3">{isEditing ? '¡Cambios guardados!' : '¡Publicación Guardada!'}</h1>
+            <p className="text-gray-600 mb-6">
+              {isEditing ? 'Tu publicación se actualizó correctamente. Serás redirigido a la ficha...' : 'Tu material ha sido publicado correctamente. Serás redirigido al dashboard...'}
+            </p>
         </div>
     );
   }
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-2xl">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Publicar Nuevo Material</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        {isEditing ? <Pencil className="w-6 h-6 text-emerald-700" /> : null}
+        {isEditing ? 'Editar publicación' : 'Publicar Nuevo Material'}
+      </h1>
+
+      {loadingExisting && (
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-sm text-gray-600 mb-4 flex items-center gap-2">
+          <Loader className="w-4 h-4 animate-spin" /> Cargando publicación...
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} noValidate>
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 space-y-4">
@@ -495,11 +602,24 @@ const PublishListing = () => {
               onChange={handleFilesChange}
               className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
             />
+            {existingImageUrls.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-gray-500 mb-2">Fotos actuales</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {existingImageUrls.slice(0, 6).map((src, idx) => (
+                    <img key={`existing-${idx}`} src={src} className="h-20 w-full object-cover rounded border" alt={`existing-${idx}`} />
+                  ))}
+                </div>
+              </div>
+            )}
             {previewUrls.length > 0 && (
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {previewUrls.slice(0, 6).map((src, idx) => (
-                  <img key={idx} src={src} className="h-20 w-full object-cover rounded border" alt={`preview-${idx}`} />
-                ))}
+              <div className="mt-3">
+                <p className="text-xs text-gray-500 mb-2">Nuevas fotos a subir</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {previewUrls.slice(0, 6).map((src, idx) => (
+                    <img key={`preview-${idx}`} src={src} className="h-20 w-full object-cover rounded border" alt={`preview-${idx}`} />
+                  ))}
+                </div>
               </div>
             )}
             <p className="text-xs text-gray-500 mt-2">
@@ -562,7 +682,7 @@ const PublishListing = () => {
           <div className="pt-4 border-t border-gray-200">
             <button type="submit" disabled={isSubmitting}
                     className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-              {isSubmitting ? 'Publicando...' : <><Save size={18}/> Publicar Material</>}
+              {isSubmitting ? (isEditing ? 'Guardando...' : 'Publicando...') : <><Save size={18}/> {isEditing ? 'Guardar cambios' : 'Publicar Material'}</>}
             </button>
           </div>
 

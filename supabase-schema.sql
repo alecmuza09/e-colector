@@ -267,6 +267,13 @@ CREATE POLICY "Admins can delete users" ON public.users
 CREATE POLICY "Anyone can view active products" ON public.products
   FOR SELECT USING (status = 'activo');
 
+-- Permitir que el dueño pueda ver sus propios productos (sin importar status)
+CREATE POLICY "Users can view own products" ON public.products
+  FOR SELECT USING (
+    auth.role() = 'authenticated' AND
+    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+  );
+
 -- Admins pueden ver TODOS los productos (para panel y moderación)
 CREATE POLICY "Admins can view all products" ON public.products
   FOR SELECT USING (

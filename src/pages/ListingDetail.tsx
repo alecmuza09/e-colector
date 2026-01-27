@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { MapPin, DollarSign, CheckCircle, AlertCircle, ArrowLeft, Loader, User, MessageSquare } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle, AlertCircle, ArrowLeft, Loader, MessageSquare, Pencil } from 'lucide-react';
 import { Product } from '../data/mockProducts';
 import { getProductById } from '../services/products';
 import { useAuth } from '../context/AuthContext';
@@ -149,10 +149,6 @@ const ListingDetail = () => {
       setOfferError('No puedes enviar una oferta a tu propia publicación.');
       return;
     }
-    if (!userProfile.is_verified) {
-      setOfferError('Para ofertar necesitas ser un usuario verificado.');
-      return;
-    }
 
     const priceToSend = product.type === 'donacion' ? 0 : Number(offerPrice || 0);
     if (product.type === 'venta' && (!priceToSend || priceToSend <= 0)) {
@@ -225,6 +221,16 @@ const ListingDetail = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {isOwner && (
+        <div className="mb-4">
+          <Link
+            to={`/publicar/${product.id}`}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium"
+          >
+            <Pencil className="w-4 h-4" /> Editar mi publicación
+          </Link>
+        </div>
+      )}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="relative h-96">
           <img
@@ -377,21 +383,6 @@ const ListingDetail = () => {
                 {!isAuthenticated ? (
                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
                      Inicia sesión para enviar una oferta. <Link to="/login" className="underline ml-1">Ir a login</Link>
-                   </div>
-                ) : !userProfile?.is_verified ? (
-                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                     <div className="flex items-start gap-3">
-                       <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                       <div>
-                         <h3 className="font-medium text-yellow-800">Verificación requerida</h3>
-                         <p className="text-sm text-yellow-700 mt-1">
-                           Para ofertar o solicitar necesitas ser un usuario verificado.
-                           <Link to="/perfil" className="text-yellow-800 underline ml-1">
-                             Verificar mi cuenta
-                           </Link>
-                         </p>
-                       </div>
-                     </div>
                    </div>
                 ) : (
                   <form onSubmit={handleSubmitOffer} className="space-y-4">

@@ -149,6 +149,57 @@ export const createProduct = async (productData: {
   }
 };
 
+// Actualizar producto existente (solo dueño o admin por RLS)
+export const updateProduct = async (
+  productId: string,
+  updates: {
+    title?: string;
+    description?: string;
+    price?: number;
+    category?: string;
+    quantity?: number;
+    unit?: string;
+    location?: string;
+    municipality?: string;
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+    tags?: string[];
+    image_url?: string;
+    image_urls?: string[];
+    type?: 'venta' | 'donacion';
+    status?: 'activo' | 'vendido' | 'expirado' | 'cancelado';
+  }
+): Promise<Product | null> => {
+  try {
+    const baseUpdate: any = {
+      ...updates,
+    };
+
+    // Intento 1: con image_urls (si existe en el esquema)
+    let { data, error } = await supabase
+      .from('products')
+      .update(baseUpdate)
+      .eq('id', productId)
+      .select()
+      .single();
+
+    // Fallback: si la columna image_urls no existe todavía, reintenta sin ella
+    if (error && String((error as any)?.message || '').toLowerCase().includes('image_urls')) {
+      const { image_urls, ...rest } = baseUpdate;
+      const retry = await supabase.from('products').update(rest).eq('id', productId).select().single();
+      data = retry.data as any;
+      error = retry.error as any;
+    }
+
+    if (error) throw error;
+    return mapProductFromDB(data as any);
+  } catch (error) {
+    console.error('Error updating product:', error);
+    throw error;
+  }
+};
+
 // Obtener productos por categoría
 export const getProductsByCategory = async (category: string): Promise<Product[]> => {
   try {

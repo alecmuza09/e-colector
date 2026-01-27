@@ -101,6 +101,7 @@ function AppContent() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/perfil" element={<Profile />} />
                 <Route path="/publicar" element={<PublishListing />} />
+                <Route path="/publicar/:id" element={<PublishListing />} />
                 <Route path="/mensajes" element={<Mensajes />} />
                 <Route path="/favoritos" element={<Favoritos />} />
                 <Route path="/estadisticas" element={<Estadisticas />} />

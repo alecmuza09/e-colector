@@ -9,6 +9,7 @@ const SellerProfile = () => {
   const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [myProducts, setMyProducts] = useState<Product[]>([]);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [activeCount, setActiveCount] = useState(0);
   const [soldCount, setSoldCount] = useState(0);
   const [offersReceivedCount, setOffersReceivedCount] = useState(0);
@@ -19,6 +20,7 @@ const SellerProfile = () => {
     const load = async () => {
       if (!userProfile) return;
       setLoading(true);
+      setProductsError(null);
       try {
         const { count: cActive } = await supabase
           .from('products')
@@ -34,12 +36,36 @@ const SellerProfile = () => {
           .eq('status', 'vendido');
         setSoldCount(cSold || 0);
 
-        const { data: products, error: prodErr } = await supabase
-          .from('products')
-          .select('id,title,description,price,currency,location,municipality,address,category,tags,image_url,image_urls,latitude,longitude,verified,type,created_at,status,user_id')
-          .eq('user_id', userProfile.id)
-          .order('created_at', { ascending: false })
-          .limit(20);
+        // Compatibilidad: si la columna image_urls no existe en tu DB aún, reintentamos sin ella
+        const selectWithImages =
+          'id,title,description,price,currency,location,municipality,address,category,tags,image_url,image_urls,latitude,longitude,verified,type,created_at,status,user_id';
+        const selectWithoutImages =
+          'id,title,description,price,currency,location,municipality,address,category,tags,image_url,latitude,longitude,verified,type,created_at,status,user_id';
+
+        let products: any[] | null = null;
+        let prodErr: any = null;
+        {
+          const r = await supabase
+            .from('products')
+            .select(selectWithImages)
+            .eq('user_id', userProfile.id)
+            .order('created_at', { ascending: false })
+            .limit(20);
+          products = r.data as any;
+          prodErr = r.error;
+        }
+
+        if (prodErr && String(prodErr.message || '').toLowerCase().includes('image_urls')) {
+          const r2 = await supabase
+            .from('products')
+            .select(selectWithoutImages)
+            .eq('user_id', userProfile.id)
+            .order('created_at', { ascending: false })
+            .limit(20);
+          products = r2.data as any;
+          prodErr = r2.error;
+        }
+
         if (prodErr) throw prodErr;
         const mapped = (products || []).map((p: any) => ({
           id: p.id,
@@ -54,7 +80,7 @@ const SellerProfile = () => {
           category: (p.category as any) || 'Otros',
           tags: p.tags || [],
           imageUrl: (p.image_urls && p.image_urls[0]) || p.image_url || '',
-          imageUrls: p.image_urls || [],
+          imageUrls: p.image_urls || (p.image_url ? [p.image_url] : []),
           latitude: p.latitude || 25.6866,
           longitude: p.longitude || -100.3161,
           verified: !!p.verified,
@@ -76,6 +102,9 @@ const SellerProfile = () => {
         }
       } catch (e) {
         console.error('Error loading seller profile stats:', e);
+        setProductsError('No se pudieron cargar tus publicaciones. Revisa que tu tabla `products` tenga la columna `image_urls` o ejecuta el update de schema.');
+        // Mantener counts si ya se obtuvieron, pero evita mostrar "no tienes publicaciones" si hay error real
+        setMyProducts([]);
       } finally {
         setLoading(false);
       }
@@ -230,6 +259,12 @@ const SellerProfile = () => {
             <Loader className="w-5 h-5 animate-spin mx-auto mb-2" />
             Cargando publicaciones...
           </div>
+        ) : productsError ? (
+          <div className="py-6 text-center">
+            <div className="inline-block text-left bg-yellow-50 border border-yellow-200 text-yellow-900 px-4 py-3 rounded-lg text-sm">
+              {productsError}
+            </div>
+          </div>
         ) : myProducts.length === 0 ? (
           <div className="py-8 text-center text-gray-600">
             Aún no tienes publicaciones. <Link to="/publicar" className="text-emerald-700 font-semibold hover:underline">Crea la primera</Link>.
@@ -254,9 +289,14 @@ const SellerProfile = () => {
                   <div className="text-emerald-700 font-bold">
                     {p.type === 'donacion' || p.price === 0 ? 'Gratis' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: p.currency }).format(p.price)}
                   </div>
-                  <Link to={`/listado/${p.id}`} className="text-sm text-emerald-700 hover:underline">
-                    Ver ficha
-                  </Link>
+                  <div className="flex items-center justify-end gap-3 mt-1">
+                    <Link to={`/listado/${p.id}`} className="text-sm text-emerald-700 hover:underline">
+                      Ver ficha
+                    </Link>
+                    <Link to={`/publicar/${p.id}`} className="text-sm text-emerald-700 hover:underline font-semibold">
+                      Editar
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
