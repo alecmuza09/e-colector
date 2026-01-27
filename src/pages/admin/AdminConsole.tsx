@@ -30,7 +30,7 @@ interface UserRow {
   created_at: string;
 }
 
-type AdminTab = 'resumen' | 'usuarios' | 'contenido';
+type AdminTab = 'resumen' | 'estadisticas' | 'usuarios' | 'contenido';
 
 type PlatformStats = {
   usersTotal: number;
@@ -87,6 +87,8 @@ export default function AdminConsole() {
     favoritesTotal: 0,
   });
   const [recentProducts, setRecentProducts] = useState<ProductRow[]>([]);
+  const [growthLoading, setGrowthLoading] = useState(false);
+  const [growth, setGrowth] = useState<Array<{ day: string; users: number; products: number; offers: number }>>([]);
 
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
@@ -105,6 +107,7 @@ export default function AdminConsole() {
   useEffect(() => {
     loadUsers();
     loadStatsAndRecent();
+    loadGrowth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -176,6 +179,52 @@ export default function AdminConsole() {
       console.error('Error loading admin stats:', e);
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  const loadGrowth = async () => {
+    setGrowthLoading(true);
+    try {
+      const days = 14;
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+      const [uRes, pRes, oRes] = await Promise.all([
+        supabase.from('users').select('created_at').gte('created_at', since),
+        supabase.from('products').select('created_at').gte('created_at', since),
+        supabase.from('offers').select('created_at').gte('created_at', since),
+      ]);
+
+      const toDayKey = (iso: string) => {
+        const d = new Date(iso);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dd}`;
+      };
+
+      const init: Record<string, { users: number; products: number; offers: number }> = {};
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const key = toDayKey(d.toISOString());
+        init[key] = { users: 0, products: 0, offers: 0 };
+      }
+
+      for (const r of (uRes.data || []) as any[]) init[toDayKey(r.created_at)] && (init[toDayKey(r.created_at)].users += 1);
+      for (const r of (pRes.data || []) as any[]) init[toDayKey(r.created_at)] && (init[toDayKey(r.created_at)].products += 1);
+      for (const r of (oRes.data || []) as any[]) init[toDayKey(r.created_at)] && (init[toDayKey(r.created_at)].offers += 1);
+
+      setGrowth(
+        Object.entries(init).map(([day, v]) => ({
+          day,
+          users: v.users,
+          products: v.products,
+          offers: v.offers,
+        }))
+      );
+    } catch (e) {
+      console.error('Error loading growth stats:', e);
+    } finally {
+      setGrowthLoading(false);
     }
   };
 
@@ -317,6 +366,16 @@ export default function AdminConsole() {
           <LayoutDashboard className="w-4 h-4" /> Resumen
         </button>
         <button
+          onClick={() => setActiveTab('estadisticas')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+            activeTab === 'estadisticas'
+              ? 'bg-red-600 text-white'
+              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <FileText className="w-4 h-4" /> Estadísticas
+        </button>
+        <button
           onClick={() => setActiveTab('usuarios')}
           className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
             activeTab === 'usuarios'
@@ -433,6 +492,53 @@ export default function AdminConsole() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'estadisticas' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <LayoutDashboard className="w-5 h-5 text-red-600" /> Crecimiento (últimos 14 días)
+              </h2>
+              <button
+                onClick={loadGrowth}
+                className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${growthLoading ? 'animate-spin' : ''}`} /> Refrescar
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mt-2">
+              Así se está alimentando la plataforma: nuevos usuarios, publicaciones y ofertas por día.
+            </p>
+
+            <div className="overflow-x-auto mt-4">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Día</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Usuarios</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Publicaciones</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ofertas</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {growth.map((g) => (
+                    <tr key={g.day}>
+                      <td className="px-4 py-2 text-gray-700">{new Date(g.day).toLocaleDateString('es-MX')}</td>
+                      <td className="px-4 py-2 font-semibold text-gray-900">{g.users}</td>
+                      <td className="px-4 py-2 font-semibold text-gray-900">{g.products}</td>
+                      <td className="px-4 py-2 font-semibold text-gray-900">{g.offers}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {growth.length === 0 && !growthLoading && (
+                <div className="text-sm text-gray-500 mt-4">Sin datos aún.</div>
+              )}
+            </div>
           </div>
         </div>
       )}

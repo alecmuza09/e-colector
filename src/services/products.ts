@@ -35,6 +35,7 @@ export const mapProductFromDB = (dbProduct: ProductFromDB): Product => {
     `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(dbProduct.title)}`;
   return {
     id: dbProduct.id,
+    userId: dbProduct.user_id,
     title: dbProduct.title,
     description: dbProduct.description,
     price: Number(dbProduct.price),
@@ -50,6 +51,8 @@ export const mapProductFromDB = (dbProduct: ProductFromDB): Product => {
     longitude: dbProduct.longitude || -100.3185,
     verified: dbProduct.verified,
     type: dbProduct.type,
+    createdAt: dbProduct.created_at,
+    status: dbProduct.status,
   };
 };
 

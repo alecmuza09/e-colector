@@ -194,6 +194,61 @@ const PublishListing = () => {
       });
 
       console.log('Publicación guardada en Supabase:', newProduct);
+
+      // Notificar a usuarios interesados (in-app vía messages)
+      try {
+        if (newProduct?.id && userProfile?.id) {
+          const categoryToInterest: Record<string, string[]> = {
+            PET: ['Plástico'],
+            HDPE: ['Plástico'],
+            Cartón: ['Cartón / Papel'],
+            Papel: ['Cartón / Papel'],
+            Metal: ['Metales'],
+            Electrónicos: ['Electrónicos'],
+            Vidrio: ['Vidrio'],
+          };
+          const interests = categoryToInterest[formData.category] || [];
+          if (interests.length > 0) {
+            const { data: buyers, error: buyersErr } = await supabase
+              .from('users')
+              .select('id,profile_data')
+              .eq('role', 'buyer')
+              .limit(500);
+            if (!buyersErr && buyers) {
+              const recipients = buyers
+                .filter((u: any) => u.id !== userProfile.id)
+                .filter((u: any) => {
+                  const pd = u.profile_data || {};
+                  const wantsAlerts = pd?.recibirAlertas === true || pd?.notificationPreferences?.newListings === true;
+                  if (!wantsAlerts) return false;
+                  const arr =
+                    pd?.materialesInteres ||
+                    pd?.materialCategoriesOfInterest ||
+                    [];
+                  if (!Array.isArray(arr)) return false;
+                  return interests.some((x) => arr.includes(x));
+                })
+                .slice(0, 50);
+
+              if (recipients.length > 0) {
+                await supabase.from('messages').insert(
+                  recipients.map((r: any) => ({
+                    sender_id: userProfile.id,
+                    receiver_id: r.id,
+                    product_id: newProduct.id,
+                    subject: 'Nueva publicación que podría interesarte',
+                    content: `Nueva publicación: ${newProduct.title}\nCategoría: ${formData.category}\nMunicipio: ${formData.municipality}\n\nVer ficha: /listado/${newProduct.id}`,
+                    read: false,
+                  }))
+                );
+              }
+            }
+          }
+        }
+      } catch (notifyErr) {
+        console.warn('No se pudieron enviar notificaciones:', notifyErr);
+      }
+
       setSubmissionStatus('success');
       
       // Limpiar formulario y redirigir después de un momento

@@ -1,5 +1,6 @@
 export interface Product {
   id: string;
+  userId?: string;
   title: string;
   description: string;
   price: number;
@@ -15,6 +16,8 @@ export interface Product {
   longitude: number;
   verified: boolean;
   type: 'venta' | 'donacion';
+  createdAt?: string;
+  status?: string;
 }
 
 // Datos de municipios del ÁREA METROPOLITANA DE MONTERREY (AMM) con rangos de coordenadas precisos

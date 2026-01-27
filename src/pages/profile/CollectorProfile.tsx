@@ -1,9 +1,57 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Package, Truck, MapPin, Clock, Shield, CheckCircle } from 'lucide-react';
+import { Package, Truck, Shield, CheckCircle, Loader, MapPin } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { Link } from 'react-router-dom';
+import type { Product } from '../../data/mockProducts';
 
 const CollectorProfile = () => {
   const { userProfile } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [myProducts, setMyProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!userProfile) return;
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id,title,description,price,currency,location,municipality,address,category,tags,image_url,image_urls,latitude,longitude,verified,type,created_at,status,user_id')
+          .eq('user_id', userProfile.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (error) throw error;
+        const mapped = (data || []).map((p: any) => ({
+          id: p.id,
+          userId: p.user_id,
+          title: p.title,
+          description: p.description,
+          price: Number(p.price),
+          currency: p.currency || 'MXN',
+          location: p.location || '',
+          municipality: (p.municipality as any) || 'Monterrey',
+          address: p.address || '',
+          category: (p.category as any) || 'Otros',
+          tags: p.tags || [],
+          imageUrl: (p.image_urls && p.image_urls[0]) || p.image_url || '',
+          imageUrls: p.image_urls || [],
+          latitude: p.latitude || 25.6866,
+          longitude: p.longitude || -100.3161,
+          verified: !!p.verified,
+          type: p.type,
+          createdAt: p.created_at,
+          status: p.status,
+        })) as Product[];
+        setMyProducts(mapped);
+      } catch (e) {
+        console.error('Error loading collector products:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [userProfile?.id]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -142,6 +190,60 @@ const CollectorProfile = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Mis publicaciones */}
+      <div className="bg-white rounded-lg shadow p-6 mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Package className="w-5 h-5 text-purple-600" />
+            Mis publicaciones
+          </h2>
+          <Link
+            to="/publicar"
+            className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 text-sm font-medium"
+          >
+            Publicar material
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="py-8 text-center text-gray-500">
+            <Loader className="w-5 h-5 animate-spin mx-auto mb-2" />
+            Cargando publicaciones...
+          </div>
+        ) : myProducts.length === 0 ? (
+          <div className="py-8 text-center text-gray-600">
+            Aún no tienes publicaciones. <Link to="/publicar" className="text-purple-700 font-semibold hover:underline">Crea la primera</Link>.
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {myProducts.map((p) => (
+              <div key={p.id} className="py-4 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <Link to={`/listado/${p.id}`} className="font-semibold text-gray-900 hover:underline">
+                    {p.title}
+                  </Link>
+                  <div className="text-sm text-gray-600 flex flex-wrap gap-3 mt-1">
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="w-4 h-4" /> {p.municipality}
+                    </span>
+                    <span className="text-gray-500">{p.status}</span>
+                    {p.createdAt && <span className="text-gray-500">{new Date(p.createdAt).toLocaleDateString('es-MX')}</span>}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  <div className="text-purple-700 font-bold">
+                    {p.type === 'donacion' || p.price === 0 ? 'Gratis' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: p.currency }).format(p.price)}
+                  </div>
+                  <Link to={`/listado/${p.id}`} className="text-sm text-purple-700 hover:underline">
+                    Ver ficha
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

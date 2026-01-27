@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { MapPin, Calendar, Clock, DollarSign, Package, Info, CheckCircle, AlertCircle, ArrowLeft, Loader } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle, AlertCircle, ArrowLeft, Loader, User, MessageSquare } from 'lucide-react';
 import { Product } from '../data/mockProducts';
 import { getProductById } from '../services/products';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
-interface Offer {
-  id: number;
-  collectorId: number;
+type OfferRow = {
+  id: string;
   price: number;
-  suggestedDate: string;
-  suggestedTime: string;
-  status: 'pending' | 'accepted' | 'rejected';
-}
+  quantity: string | null;
+  message: string | null;
+  status: string;
+  created_at: string;
+  buyer?: { full_name?: string | null; email?: string | null } | null;
+};
 
 const formatPrice = (price: number, currency: string, type: Product['type']) => {
   if (type === 'donacion' || price === 0) {
@@ -22,18 +25,23 @@ const formatPrice = (price: number, currency: string, type: Product['type']) => 
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { isAuthenticated, userProfile } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showOfferForm, setShowOfferForm] = useState(false);
-  const [offer, setOffer] = useState<Partial<Offer>>({
-    price: 0,
-    suggestedDate: '',
-    suggestedTime: '',
-  });
+  const [offerLoading, setOfferLoading] = useState(false);
+  const [offerError, setOfferError] = useState<string | null>(null);
+  const [offerSuccess, setOfferSuccess] = useState<string | null>(null);
+  const [offerPrice, setOfferPrice] = useState<number>(0);
+  const [offerQuantity, setOfferQuantity] = useState<string>('');
+  const [offerMessage, setOfferMessage] = useState<string>('');
+  const [offerDate, setOfferDate] = useState<string>('');
+  const [offerTime, setOfferTime] = useState<string>('');
 
-  const isVerifiedCollector = true;
+  const [owner, setOwner] = useState<{ id: string; full_name: string; email: string; city: string | null; is_verified: boolean } | null>(null);
+  const [offers, setOffers] = useState<OfferRow[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -41,18 +49,54 @@ const ListingDetail = () => {
         setLoading(true);
         const data = await getProductById(id);
         setProduct(data);
-        if (data) {
-          setOffer({
-            price: data.type === 'venta' ? data.price : 0,
-            suggestedDate: '',
-            suggestedTime: '',
-          });
-        }
+        if (data) setOfferPrice(data.type === 'venta' ? data.price : 0);
         setLoading(false);
       }
     };
     loadProduct();
   }, [id]);
+
+  const isOwner = useMemo(() => {
+    if (!product?.userId || !userProfile?.id) return false;
+    return product.userId === userProfile.id;
+  }, [product?.userId, userProfile?.id]);
+
+  useEffect(() => {
+    const loadOwner = async () => {
+      if (!product?.userId) return;
+      const { data, error } = await supabase
+        .from('users')
+        .select('id,full_name,email,city,is_verified')
+        .eq('id', product.userId)
+        .single();
+      if (!error && data) {
+        setOwner(data as any);
+      }
+    };
+    loadOwner();
+  }, [product?.userId]);
+
+  useEffect(() => {
+    const loadOffers = async () => {
+      if (!product?.id) return;
+      if (!isAuthenticated || !userProfile) return;
+      setOffersLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('offers')
+          .select('id,price,quantity,message,status,created_at,buyer:buyer_id(full_name,email)')
+          .eq('product_id', product.id)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        setOffers((data || []) as any);
+      } catch (e) {
+        console.error('Error loading offers:', e);
+      } finally {
+        setOffersLoading(false);
+      }
+    };
+    loadOffers();
+  }, [product?.id, isAuthenticated, userProfile?.id]);
 
   if (loading) {
     return (
@@ -89,11 +133,84 @@ const ListingDetail = () => {
     );
   };
 
-  const handleSubmitOffer = (e: React.FormEvent) => {
+  const handleSubmitOffer = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Oferta enviada:', offer);
-    setShowOfferForm(false);
-    alert('Oferta enviada (simulación)');
+    setOfferError(null);
+    setOfferSuccess(null);
+    if (!isAuthenticated || !userProfile) {
+      setOfferError('Debes iniciar sesión para enviar una oferta.');
+      return;
+    }
+    if (!product.userId) {
+      setOfferError('No se encontró el dueño de la publicación.');
+      return;
+    }
+    if (isOwner) {
+      setOfferError('No puedes enviar una oferta a tu propia publicación.');
+      return;
+    }
+    if (!userProfile.is_verified) {
+      setOfferError('Para ofertar necesitas ser un usuario verificado.');
+      return;
+    }
+
+    const priceToSend = product.type === 'donacion' ? 0 : Number(offerPrice || 0);
+    if (product.type === 'venta' && (!priceToSend || priceToSend <= 0)) {
+      setOfferError('Introduce un precio válido.');
+      return;
+    }
+
+    setOfferLoading(true);
+    try {
+      const composedMessage = [
+        offerMessage?.trim() ? offerMessage.trim() : null,
+        offerDate ? `Fecha sugerida: ${offerDate}` : null,
+        offerTime ? `Hora sugerida: ${offerTime}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      const { data: createdOffer, error } = await supabase
+        .from('offers')
+        .insert({
+          product_id: product.id,
+          buyer_id: userProfile.id,
+          price: priceToSend,
+          quantity: offerQuantity?.trim() || null,
+          message: composedMessage || null,
+          status: 'pendiente',
+        })
+        .select('id')
+        .single();
+      if (error) throw error;
+
+      // Notificar al dueño del producto (mensaje in-app)
+      await supabase.from('messages').insert({
+        sender_id: userProfile.id,
+        receiver_id: product.userId,
+        product_id: product.id,
+        subject: 'Nueva oferta',
+        content: `Recibiste una oferta para: ${product.title}\n\nPrecio: ${priceToSend} ${product.currency}\nCantidad: ${offerQuantity || '—'}\n\n${composedMessage || ''}`.trim(),
+        read: false,
+      });
+
+      setOfferSuccess('Oferta enviada. El vendedor/recolector fue notificado.');
+
+      // refrescar lista
+      if (createdOffer?.id) {
+        const { data: refreshed } = await supabase
+          .from('offers')
+          .select('id,price,quantity,message,status,created_at,buyer:buyer_id(full_name,email)')
+          .eq('product_id', product.id)
+          .order('created_at', { ascending: false });
+        setOffers((refreshed || []) as any);
+      }
+    } catch (e: any) {
+      console.error('Error creating offer:', e);
+      setOfferError(e?.message || 'No se pudo enviar la oferta.');
+    } finally {
+      setOfferLoading(false);
+    }
   };
 
   const getStatusBadge = () => {
@@ -194,12 +311,16 @@ const ListingDetail = () => {
                   <h2 className="text-lg font-semibold mb-2">Publicado por</h2>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-lg font-semibold text-gray-500">
-                      {product.municipality.charAt(0)}
+                      {(owner?.full_name || product.municipality).charAt(0)}
                     </div>
                     <div>
-                      <p className="font-medium">Usuario de {product.municipality}</p>
+                      <p className="font-medium">{owner?.full_name || `Usuario de ${product.municipality}`}</p>
+                      {owner?.city && <p className="text-sm text-gray-600">{owner.city}</p>}
+                      {product.createdAt && (
+                        <p className="text-sm text-gray-500">Publicado el {new Date(product.createdAt).toLocaleString('es-MX')}</p>
+                      )}
                       <div className="flex items-center gap-2">
-                        {product.verified && (
+                        {(owner?.is_verified || product.verified) && (
                           <span className="flex items-center text-sm text-emerald-600">
                             <CheckCircle className="h-4 w-4 mr-1" />
                             Verificado
@@ -209,6 +330,40 @@ const ListingDetail = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Ofertas (solo si eres dueño o si eres quien ofertó / estás autenticado) */}
+                {isAuthenticated && userProfile && (
+                  <div>
+                    <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5" /> Ofertas
+                    </h2>
+                    {offersLoading ? (
+                      <div className="text-sm text-gray-500">Cargando ofertas...</div>
+                    ) : offers.length === 0 ? (
+                      <div className="text-sm text-gray-500">Aún no hay ofertas para esta publicación.</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {(isOwner ? offers : offers.filter((o) => o.buyer?.email === userProfile.email)).slice(0, 10).map((o) => (
+                          <div key={o.id} className="border border-gray-200 rounded-lg p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="font-semibold text-gray-900">
+                                {new Intl.NumberFormat('es-MX', { style: 'currency', currency: product.currency }).format(Number(o.price))}
+                              </div>
+                              <div className="text-xs text-gray-500">{new Date(o.created_at).toLocaleString('es-MX')}</div>
+                            </div>
+                            {isOwner && (
+                              <div className="text-sm text-gray-700 mt-1">
+                                {o.buyer?.full_name || o.buyer?.email || 'Usuario'} · {o.quantity || '—'}
+                              </div>
+                            )}
+                            {o.message && <pre className="text-xs text-gray-600 whitespace-pre-wrap mt-2">{o.message}</pre>}
+                            <div className="text-xs text-gray-500 mt-2">Estatus: {o.status}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
 
             <div className="md:col-span-1">
@@ -219,7 +374,11 @@ const ListingDetail = () => {
                    {product.type === 'venta' && <span className="text-sm font-normal text-gray-500"> / kg</span>} 
                 </p>
                 
-                {!isVerifiedCollector ? (
+                {!isAuthenticated ? (
+                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                     Inicia sesión para enviar una oferta. <Link to="/login" className="underline ml-1">Ir a login</Link>
+                   </div>
+                ) : !userProfile?.is_verified ? (
                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                      <div className="flex items-start gap-3">
                        <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -246,8 +405,8 @@ const ListingDetail = () => {
                           <input
                             type="number"
                             step="0.50"
-                            value={offer.price}
-                            onChange={(e) => setOffer({ ...offer, price: parseFloat(e.target.value) })}
+                            value={offerPrice}
+                            onChange={(e) => setOfferPrice(parseFloat(e.target.value))}
                             className="pl-10 w-full p-2 border border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                             placeholder={product.price.toFixed(2)}
                             required
@@ -258,32 +417,66 @@ const ListingDetail = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {product.type === 'donacion' ? 'Fecha sugerida de recolección' : 'Fecha sugerida'}
+                        Cantidad (opcional)
                       </label>
                       <input
-                        type="date"
-                        value={offer.suggestedDate}
-                        onChange={(e) => setOffer({ ...offer, suggestedDate: e.target.value })}
+                        type="text"
+                        value={offerQuantity}
+                        onChange={(e) => setOfferQuantity(e.target.value)}
                         className="w-full p-2 border border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                        required
+                        placeholder="Ej: 50 kg / 2 ton"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {product.type === 'donacion' ? 'Hora sugerida de recolección' : 'Hora sugerida'}
+                        {product.type === 'donacion' ? 'Fecha sugerida de recolección (opcional)' : 'Fecha sugerida (opcional)'}
+                      </label>
+                      <input
+                        type="date"
+                        value={offerDate}
+                        onChange={(e) => setOfferDate(e.target.value)}
+                        className="w-full p-2 border border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Hora sugerida (opcional)
                       </label>
                       <input
                         type="time"
-                        value={offer.suggestedTime}
-                        onChange={(e) => setOffer({ ...offer, suggestedTime: e.target.value })}
+                        value={offerTime}
+                        onChange={(e) => setOfferTime(e.target.value)}
                         className="w-full p-2 border border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                        required
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Mensaje (opcional)
+                      </label>
+                      <textarea
+                        value={offerMessage}
+                        onChange={(e) => setOfferMessage(e.target.value)}
+                        className="w-full p-2 border border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                        rows={3}
+                        placeholder="Escribe un mensaje para el vendedor/recolector..."
+                      />
+                    </div>
+
+                    {offerError && (
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+                        {offerError}
+                      </div>
+                    )}
+                    {offerSuccess && (
+                      <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2 rounded text-sm">
+                        {offerSuccess}
+                      </div>
+                    )}
                     <button 
                       type="submit"
+                      disabled={offerLoading || isOwner}
                       className="w-full bg-emerald-600 text-white py-2.5 px-4 rounded-lg hover:bg-emerald-700 transition font-medium">
-                       {product.type === 'donacion' ? 'Solicitar Recolección' : 'Enviar Oferta'}
+                       {offerLoading ? 'Enviando...' : product.type === 'donacion' ? 'Solicitar Recolección' : 'Enviar Oferta'}
                     </button>
                   </form>
                 )}
