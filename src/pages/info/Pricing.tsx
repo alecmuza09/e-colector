@@ -1,29 +1,50 @@
 import React from 'react';
-import { Check, Sparkles, Truck, Factory } from 'lucide-react';
+import { Check, Home, Building2, Truck, Factory } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
 const Pricing = () => {
   const plans = [
     {
-      icon: Sparkles,
-      name: 'Generador',
+      icon: Home,
+      name: 'Generador Doméstico',
       badge: 'Gratis',
       badgeClass: 'bg-emerald-500 text-white',
-      description: 'Ideal para empresas o personas que generan materiales reciclables y buscan darles salida de forma eficiente.',
+      description: 'Para personas que desean reciclar y dar salida responsable a sus residuos.',
       price: null,
       priceAfter: null,
       features: [
         'Publicación de materiales reciclables.',
-        'Acceso a red de recolectores y recicladores.',
-        'Gestión básica de solicitudes.',
-        'Historial de movimientos.',
-        'Soporte estándar.',
+        'Conexión con recolectores cercanos.',
+        'Historial básico de entregas.',
+        'Participación en la red de economía circular.',
       ],
-      footer: 'Sin costo. Sin comisiones ocultas.',
+      footer: 'Sin costo.',
       cta: 'Registrarse gratis',
       href: '/registro',
       borderClass: 'border-emerald-200 dark:border-emerald-800',
+      popular: false,
+    },
+    {
+      icon: Building2,
+      name: 'Generador Industrial',
+      badge: '$200 / mes',
+      badgeClass: 'bg-slate-600 text-white',
+      description: 'Plataforma de gestión y cuantificación de residuos para empresas. Diseñado para empresas que necesitan medir, ordenar y profesionalizar su manejo de residuos.',
+      price: 200,
+      priceAfter: null,
+      features: [
+        'Publicación de materiales reciclables industriales.',
+        'Conexión con red de recolectores y recicladores.',
+        'Plataforma de cuantificación de residuos.',
+        'Métricas de impacto en economía circular.',
+        'Historial y trazabilidad de movimientos.',
+        'Reportes básicos para control interno.',
+      ],
+      footer: 'Convierte tu gestión de residuos en un indicador estratégico.',
+      cta: 'Contratar plan',
+      href: '/contacto',
+      borderClass: 'border-slate-200 dark:border-slate-700',
       popular: false,
     },
     {
@@ -31,18 +52,18 @@ const Pricing = () => {
       name: 'Recolector',
       badge: '6 meses gratis',
       badgeClass: 'bg-teal-500 text-white',
-      description: 'Pensado para recolectores que buscan más oportunidades y mejor organización operativa.',
+      description: 'Para recolectores que buscan más oportunidades y mejor organización.',
       price: 199,
-      priceAfter: '6 meses sin costo, luego',
+      priceAfter: 'Después:',
       features: [
-        'Acceso a solicitudes activas de generadores.',
-        'Perfil verificado dentro de la plataforma.',
+        'Acceso a solicitudes activas.',
+        'Perfil profesional dentro de la plataforma.',
         'Gestión de rutas y solicitudes.',
         'Historial de operaciones.',
         'Métricas básicas de desempeño.',
         'Soporte prioritario.',
       ],
-      footer: '6 meses sin costo para impulsar tu crecimiento. Luego una tarifa accesible para mantener acceso continuo a oportunidades.',
+      footer: '6 meses sin costo para impulsar tu crecimiento.',
       cta: 'Comenzar 6 meses gratis',
       href: '/registro',
       borderClass: 'border-2 border-teal-500 dark:border-teal-400',
@@ -53,18 +74,18 @@ const Pricing = () => {
       name: 'Reciclador',
       badge: '6 meses gratis',
       badgeClass: 'bg-amber-500 text-white',
-      description: 'Tu plataforma de gestión de ingresos de materia prima para tu empresa. Diseñado para recicladores que necesitan suministro constante, trazabilidad y control financiero.',
+      description: 'Tu plataforma de gestión de ingresos de materia prima para tu empresa. Diseñado para recicladores que requieren suministro constante y control estratégico de compras.',
       price: 2000,
-      priceAfter: '6 meses sin costo, luego',
+      priceAfter: 'Después:',
       features: [
-        'Acceso directo a red de generadores y recolectores.',
-        'Panel de control de compras de materia prima.',
-        'Gestión y seguimiento de ingresos por material.',
-        'Reportes y métricas de abastecimiento.',
-        'Visibilidad destacada dentro de la plataforma.',
-        'Soporte prioritario empresarial.',
+        'Acceso directo a generadores industriales.',
+        'Gestión de ingresos de materia prima.',
+        'Seguimiento y trazabilidad de compras.',
+        'Reportes de abastecimiento.',
+        'Visibilidad destacada en la plataforma.',
+        'Soporte empresarial prioritario.',
       ],
-      footer: 'Convierte el abastecimiento en una ventaja estratégica.',
+      footer: 'Transforma el abastecimiento en ventaja competitiva.',
       cta: 'Comenzar 6 meses gratis',
       href: '/registro',
       borderClass: 'border-amber-200 dark:border-amber-800',
@@ -80,17 +101,17 @@ const Pricing = () => {
             Planes y Precios – E-Colector
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Elige el plan que mejor se adapte a tu perfil: generador, recolector o reciclador.
+            En E-Colector no solo conectamos actores del reciclaje. Digitalizamos la gestión de residuos y la economía circular.
           </p>
         </header>
 
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-6 max-w-7xl mx-auto">
           {plans.map((plan) => {
             const Icon = plan.icon;
             return (
               <div
                 key={plan.name}
-                className={`relative rounded-2xl p-6 md:p-8 bg-white dark:bg-gray-800 shadow-lg flex flex-col ${plan.borderClass} ${
+                className={`relative rounded-2xl p-6 md:p-6 bg-white dark:bg-gray-800 shadow-lg flex flex-col ${plan.borderClass} ${
                   plan.popular ? 'ring-2 ring-teal-500/50' : ''
                 }`}
               >
@@ -99,43 +120,43 @@ const Pricing = () => {
                     Más popular
                   </span>
                 )}
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-3">
                   <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
                     <Icon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{plan.name}</h2>
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{plan.name}</h2>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${plan.badgeClass}`}>
                       {plan.badge}
                     </span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
                   {plan.description}
                 </p>
-                <div className="mb-6">
+                <div className="mb-4">
                   {plan.priceAfter && (
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{plan.priceAfter}</p>
                   )}
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {plan.price === null ? (
                       'Gratis'
                     ) : (
                       <>
-                        ${plan.price.toLocaleString('es-MX')} <span className="text-base font-normal text-gray-500">MXN / mes</span>
+                        ${plan.price.toLocaleString('es-MX')} <span className="text-sm font-normal text-gray-500">MXN / mes</span>
                       </>
                     )}
                   </p>
                 </div>
-                <ul className="space-y-3 flex-grow mb-6">
+                <ul className="space-y-2 flex-grow mb-4">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                      <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 italic">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 italic">
                   {plan.footer}
                 </p>
                 <Link to={plan.href} className="block mt-auto">
@@ -160,7 +181,7 @@ const Pricing = () => {
             <details className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm cursor-pointer border border-gray-100 dark:border-gray-700">
               <summary className="font-medium text-gray-700 dark:text-gray-300">¿Hay algún costo oculto?</summary>
               <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm leading-relaxed">
-                No. El plan Generador es gratuito y sin comisiones. Los planes de pago tienen tarifas mensuales fijas y transparentes.
+                No. El plan Generador Doméstico es gratuito. Los planes de pago tienen tarifas mensuales fijas y transparentes.
               </p>
             </details>
             <details className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm cursor-pointer border border-gray-100 dark:border-gray-700">
