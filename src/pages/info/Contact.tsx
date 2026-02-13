@@ -85,7 +85,7 @@ const Contact = () => {
                 <Phone className="h-6 w-6 text-emerald-600 mt-1 flex-shrink-0" />
                 <div>
                     <h3 className="font-medium text-gray-800">Teléfono</h3>
-                    <a href="tel:+34900123456" className="text-emerald-600 hover:underline">+34 900 123 456</a>
+                    <a href="tel:+5281899624997" className="text-emerald-600 hover:underline">+52 81 8996 2499 7</a>
                     <p className="text-sm text-gray-500 mt-1">Horario de atención: Lunes a Viernes, 9:00 - 18:00 CET.</p>
                 </div>
              </div>

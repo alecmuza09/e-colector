@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Users, Package, Calendar, MessageCircle, Heart, Loader } from 'lucide-react';
+import { BarChart3, Users, Package, Calendar, MessageCircle, Heart, Loader, Award, Star, Gift } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
@@ -91,6 +91,42 @@ export default function Estadisticas() {
       .map(([name, publications]) => ({ name, publications }))
       .sort((a, b) => b.publications - a.publications);
   }, [products]);
+
+  // Puntos y recompensas: calculados por actividad
+  const { puntos, nivel, nivelProgreso } = useMemo(() => {
+    const ptsPublicaciones = publicationsCount * 15;
+    const ptsOfertas = offersCount * 5;
+    const ptsMensajes = Math.min(messagesCount * 2, 50);
+    const ptsFavoritos = Math.min(favoritesCount, 20);
+    const total = ptsPublicaciones + ptsOfertas + ptsMensajes + ptsFavoritos;
+
+    const niveles = [
+      { nombre: 'Bronce', min: 0, emoji: '🥉' },
+      { nombre: 'Plata', min: 50, emoji: '🥈' },
+      { nombre: 'Oro', min: 150, emoji: '🥇' },
+      { nombre: 'Platino', min: 350, emoji: '💎' },
+    ];
+    let current = niveles[0];
+    for (const n of niveles) {
+      if (total >= n.min) current = n;
+    }
+    const next = niveles[niveles.indexOf(current) + 1];
+    const progreso = next
+      ? Math.round(((total - current.min) / (next.min - current.min)) * 100)
+      : 100;
+
+    return { puntos: total, nivel: current, nivelProgreso: Math.min(progreso, 100) };
+  }, [publicationsCount, offersCount, messagesCount, favoritesCount]);
+
+  const recompensas = useMemo(
+    () => [
+      { titulo: 'Publicar materiales', puntos: 15, desc: 'Por cada publicación activa', icon: Package },
+      { titulo: 'Enviar ofertas', puntos: 5, desc: 'Por cada oferta enviada/recibida', icon: Users },
+      { titulo: 'Mensajes', puntos: 2, desc: 'Por mensaje (máx. 50 pts)', icon: MessageCircle },
+      { titulo: 'Favoritos', puntos: 1, desc: 'Por favorito guardado (máx. 20 pts)', icon: Heart },
+    ],
+    []
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
@@ -223,6 +259,77 @@ export default function Estadisticas() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Puntos y recompensas */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-emerald-200 dark:border-emerald-700 p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                <Award className="w-6 h-6 text-amber-500" />
+                Puntos y recompensas
+              </h2>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Tarjeta de puntos y nivel */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200 dark:border-amber-700">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 rounded-full bg-amber-100 dark:bg-amber-900/40">
+                        <Star className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Puntos totales</p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">{puntos}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Nivel actual</p>
+                      <p className="text-xl font-bold text-amber-700 dark:text-amber-400">
+                        {nivel.emoji} {nivel.nombre}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Progreso al siguiente nivel</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{nivelProgreso}%</span>
+                    </div>
+                    <div className="h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-500"
+                        style={{ width: `${nivelProgreso}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cómo sumar puntos */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <Gift className="w-4 h-4 text-emerald-600" />
+                    Cómo ganar puntos
+                  </p>
+                  <ul className="space-y-2">
+                    {recompensas.map((r) => {
+                      const Icon = r.icon;
+                      return (
+                        <li
+                          key={r.titulo}
+                          className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-700/50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white text-sm">{r.titulo}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{r.desc}</p>
+                            </div>
+                          </div>
+                          <span className="text-amber-600 dark:text-amber-400 font-bold text-sm">+{r.puntos} pts</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
             </div>
 
             {/* Nota de datos */}
