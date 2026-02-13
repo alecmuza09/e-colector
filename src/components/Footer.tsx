@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin, Heart, TrendingUp, Award } from 'lucide-react';
+import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin, Heart, TrendingUp } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -160,15 +160,6 @@ const Footer = () => {
                   Cookies
                 </a>
               </div>
-            </div>
-
-            {/* Highlights */}
-            <div>
-              <div className="flex items-center gap-2 text-sm text-emerald-400 font-semibold mb-2">
-                <Award className="w-4 h-4" />
-                Certificación: ISO 14001
-              </div>
-              <p className="text-xs text-gray-400">Comprometidos con la sostenibilidad ambiental</p>
             </div>
 
             {/* Social Links */}
