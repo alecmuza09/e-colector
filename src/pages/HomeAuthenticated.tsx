@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Product } from '../data/mockProducts';
 import { getProducts } from '../services/products';
-import { MapPin, Zap, TrendingUp, Heart, MessageCircle, Clock, Shield, Search, Loader, Package } from 'lucide-react';
+import { MapPin, Zap, TrendingUp, Heart, MessageCircle, Clock, Shield, Search, Loader, Package, PlusCircle } from 'lucide-react';
 
 const MONTERREY_CENTER: L.LatLngExpression = [25.6866, -100.3161];
 
@@ -72,9 +73,10 @@ export default function HomeAuthenticated() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Quick Stats */}
+      {/* Quick Stats + Publicar */}
       <div className="bg-white dark:bg-gray-800 border-b border-emerald-200 dark:border-emerald-700 sticky top-0 z-10 p-4">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
           {stats.map((stat) => {
             const Icon = stat.icon;
             const colorBg = {
@@ -103,6 +105,14 @@ export default function HomeAuthenticated() {
               </div>
             );
           })}
+          </div>
+          <Link
+            to="/publicar"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 shrink-0"
+          >
+            <PlusCircle className="w-5 h-5" />
+            Publicar
+          </Link>
         </div>
       </div>
 
