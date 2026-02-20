@@ -180,7 +180,7 @@ const Footer = () => {
                   <Twitter className="w-5 h-5" />
                 </a>
                 <a 
-                  href="https://linkedin.com" 
+                  href="https://www.linkedin.com/company/e-colector/" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="text-gray-400 hover:text-emerald-400 transition-colors hover:scale-110 transform"

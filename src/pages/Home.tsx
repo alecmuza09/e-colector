@@ -319,7 +319,7 @@ const Home = () => {
               Marketplace de<br />Materiales <span className="text-emerald-100">Reciclables</span>
             </h1>
             <p className="text-lg md:text-xl text-emerald-50 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Conecta recolectores, generadores y empresas recicladoras. Formaliza el comercio de materiales reciclables en el Área Metropolitana de Monterrey.
+              Conecta recolectores, generadores y empresas recicladoras. Formaliza el comercio de materiales reciclables en tu región y contribuye a una economía más circular.
             </p>
             
             {/* CTA Buttons */}
@@ -344,7 +344,7 @@ const Home = () => {
           {/* Estadísticas */}
           <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mt-16 pt-8 border-t border-white/20">
             {[
-              { number: '7+', label: 'Municipios' },
+              { number: '7+', label: 'Regiones' },
               { number: '8', label: 'Categorías' },
               { number: `${products.length}`, label: 'Listados' },
               { number: '100%', label: 'Gratis' },
@@ -542,7 +542,7 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">🏪 Listados Disponibles</h2>
-              <p className="text-gray-600 dark:text-gray-400">Descubre miles de oportunidades en el Área Metropolitana</p>
+              <p className="text-gray-600 dark:text-gray-400">Descubre oportunidades disponibles en tu zona y en todo el país</p>
             </div>
             <Link 
               to="/explorar"
@@ -591,7 +591,7 @@ const Home = () => {
                   <Eye className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">Visibilidad Total</h3>
-                <p className="text-emerald-100">Alcanza a miles de compradores interesados en todo el Área Metropolitana</p>
+                <p className="text-emerald-100">Alcanza a compradores y recolectores interesados en todo el país</p>
               </div>
               <div className="text-center">
                 <div className="inline-block mb-4 p-3 bg-white/20 rounded-full">
