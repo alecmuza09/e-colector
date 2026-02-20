@@ -611,39 +611,6 @@ const Home = () => {
           </div>
         </section>
 
-        {/* ============ INFORMACIÓN ÚTIL ============ */}
-        <section className="mb-20">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">❓ Preguntas Frecuentes</h2>
-            <p className="text-gray-600 dark:text-gray-400">Resuelve tus dudas en segundos</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              {
-                q: '¿Cómo publico un material?',
-                a: 'Es simple: haz clic en "Publicar Material" en el navbar, completa los datos y ¡listo! Tu listado será visible en minutos.'
-              },
-              {
-                q: '¿Es gratis usar la plataforma?',
-                a: 'Sí, 100% gratis. No hay comisiones ni tarifas ocultas. Conecta directamente con otros usuarios.'
-              },
-              {
-                q: '¿Cómo sé si un usuario es confiable?',
-                a: 'Los perfiles verificados tienen un ✓ visible. Además puedes ver la historia y calificaciones de cada usuario.'
-              },
-              {
-                q: '¿Puedo negociar precios?',
-                a: 'Absolutamente. Los precios son sugerencias. Contacta directamente con el vendedor para llegar a un acuerdo.'
-              }
-            ].map((item, idx) => (
-              <div key={idx} className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-200">
-                <h3 className="font-bold text-gray-900 dark:text-white mb-2">{item.q}</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{item.a}</p>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
       </div>
     </div>
