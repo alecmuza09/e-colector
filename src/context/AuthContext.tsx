@@ -246,12 +246,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         additionalData: userData?.additionalData || {},
       });
 
-      // Crear usuario en auth
+      // Crear usuario en auth. Para que el usuario acceda de inmediato sin verificación por correo,
+      // en Supabase Auth (Authentication → Providers → Email) debe estar desactivada la opción
+      // "Confirm email". No se envía correo de confirmación; el usuario entra tras registrarse.
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          // Importante: que el email apunte al dominio público (Netlify) y NO a localhost
           emailRedirectTo: `${getPublicSiteUrl()}/auth/callback`,
         },
       });

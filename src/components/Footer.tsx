@@ -67,11 +67,6 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/blog" className="text-sm text-gray-400 hover:text-emerald-400 transition-colors flex items-center gap-2">
-                  <span className="text-lg">📝</span> Blog & Noticias
-                </Link>
-              </li>
-              <li>
                 <Link to="/precios" className="text-sm text-gray-400 hover:text-emerald-400 transition-colors flex items-center gap-2">
                   <span className="text-lg">💰</span> Precios
                 </Link>
@@ -101,7 +96,7 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-sm text-gray-400 hover:text-emerald-400 transition-colors flex items-center gap-2">
+                <a href="https://www.instagram.com/ecolector/" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-emerald-400 transition-colors flex items-center gap-2">
                   <span className="text-lg">🔗</span> Comunidad
                 </a>
               </li>
@@ -145,20 +140,20 @@ const Footer = () => {
 
         {/* Legal & Social */}
         <div className="border-t border-gray-700 pt-8">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
             {/* Legal Links */}
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Legal & Privacidad</h4>
               <div className="flex flex-wrap gap-4">
                 <Link to="/legal/privacidad" className="text-xs text-gray-400 hover:text-emerald-400 transition-colors">
-                  Política de Privacidad
+                  Aviso de Privacidad
                 </Link>
                 <Link to="/legal/terminos" className="text-xs text-gray-400 hover:text-emerald-400 transition-colors">
                   Términos de Servicio
                 </Link>
-                <a href="#" className="text-xs text-gray-400 hover:text-emerald-400 transition-colors">
-                  Cookies
-                </a>
+                <Link to="/legal/cookies" className="text-xs text-gray-400 hover:text-emerald-400 transition-colors">
+                  Política de Cookies
+                </Link>
               </div>
             </div>
 

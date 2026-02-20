@@ -329,7 +329,7 @@ function Register() {
             </div>
             
             {/* Aceptar Términos */}
-            <CheckboxField name="termsAccepted" label="He leído y acepto los Términos y Condiciones y la Política de Privacidad." checked={termsAccepted} onChange={(e:React.ChangeEvent<HTMLInputElement>) => setTermsAccepted(e.target.checked)} />
+            <CheckboxField name="termsAccepted" label="He leído y acepto los Términos de Servicio y el Aviso de Privacidad." checked={termsAccepted} onChange={(e:React.ChangeEvent<HTMLInputElement>) => setTermsAccepted(e.target.checked)} />
            
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">

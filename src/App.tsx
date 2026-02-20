@@ -27,6 +27,7 @@ const GuideDetailPage = lazy(() => import('./pages/resources/GuideDetailPage'));
 const HelpCenter = lazy(() => import('./pages/resources/HelpCenter'));
 const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/legal/TermsOfService'));
+const CookiePolicy = lazy(() => import('./pages/legal/CookiePolicy'));
 const ExploreMap = lazy(() => import('./pages/ExploreMap'));
 const PublishListing = lazy(() => import('./pages/PublishListing'));
 const SolicitudDetail = lazy(() => import('./pages/details/SolicitudDetail'));
@@ -124,6 +125,7 @@ function AppContent() {
                 <Route path="/recursos/centro-ayuda" element={<HelpCenter />} />
                 <Route path="/legal/privacidad" element={<PrivacyPolicy />} />
                 <Route path="/legal/terminos" element={<TermsOfService />} />
+                <Route path="/legal/cookies" element={<CookiePolicy />} />
               </Routes>
             </Suspense>
         </div>

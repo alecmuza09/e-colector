@@ -86,7 +86,7 @@ export interface CollectorProfile extends CommonProfileData {
     serviceOptions: ServiceOption[];
     operatingSchedule: string; // Ej: 'L-S 8:00-18:00'
     targetClientTypes: LocationType[]; // Ej: [LocationType.COMMERCIAL, LocationType.INDUSTRIAL]
-    certifications?: string[]; // Ej: 'ISO 14001', 'Permiso SEMARNAT'
+    certifications?: string[]; // Ej: 'Permiso SEMARNAT'
     vehicleType?: string; // Ej: 'Camioneta 1 Ton', 'Camión Torton'
     vehicleCapacityKg?: number;
     hasInsurance: boolean; // ¿Cuenta con seguro? (Simplificado)

@@ -2,71 +2,197 @@ import React from 'react';
 
 const PrivacyPolicy = () => {
   return (
-    <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Política de Privacidad</h1>
-      <p className="text-sm text-gray-500 mb-6">Última actualización: [Fecha]</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="container mx-auto px-4 py-12 max-w-3xl">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          Aviso de Privacidad
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
+          Última actualización: Enero 2026
+        </p>
 
-      <div className="prose prose-emerald max-w-none">
-        {/* Usar clases 'prose' de Tailwind Typography para formateo fácil */}
-        <p>Bienvenido a e-colector. Nos comprometemos a proteger tu privacidad. Esta Política de Privacidad explica cómo recopilamos, usamos, divulgamos y protegemos tu información cuando visitas nuestra plataforma.</p>
+        <div className="prose prose-emerald max-w-none text-gray-700 dark:text-gray-300 space-y-6">
+          <p>
+            E-Colector («nosotros», «la plataforma») se compromete a proteger tu privacidad.
+            Este Aviso de Privacidad describe qué datos recopilamos, para qué los usamos,
+            con quién los compartimos y qué derechos tienes respecto a tu información.
+          </p>
 
-        <h2>1. Información que Recopilamos</h2>
-        <p>Podemos recopilar información sobre ti de varias maneras. La información que podemos recopilar incluye:</p>
-        <ul>
-          <li><strong>Datos Personales:</strong> Información de identificación personal, como tu nombre, dirección de envío, dirección de correo electrónico y número de teléfono, y datos demográficos, como tu edad, sexo, ciudad natal e intereses, que nos proporcionas voluntariamente cuando te registras en la Plataforma o cuando eliges participar en diversas actividades relacionadas con la Plataforma, como chat en línea y tablones de mensajes.</li>
-          <li><strong>Datos Derivados:</strong> Información que nuestros servidores recopilan automáticamente cuando accedes a la Plataforma, como tu dirección IP, tipo de navegador, sistema operativo, tiempos de acceso y las páginas que has visto directamente antes y después de acceder a la Plataforma.</li>
-          <li><strong>Datos Financieros:</strong> Información financiera, como datos relacionados con tu método de pago (por ejemplo, número de tarjeta de crédito válida, marca de la tarjeta, fecha de vencimiento) que podemos recopilar cuando compras, ordenas, devuelves, intercambias o solicitas información sobre nuestros servicios desde la Plataforma. [Nota: Especificar si se almacena o se procesa a través de un tercero].</li>
-           <li><strong>Datos de Terceros:</strong> Información de terceros, como información personal o amigos de la red, si conectas tu cuenta a un tercero y otorgas permiso a la Plataforma para acceder a esta información.</li>
-        </ul>
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              1. Responsable del tratamiento
+            </h2>
+            <p>
+              El responsable del tratamiento de tus datos personales es E-Colector. Para
+              ejercer tus derechos o resolver dudas sobre el tratamiento de tus datos,
+              puedes contactarnos en:{' '}
+              <a href="mailto:privacidad@ecolector.com" className="text-emerald-600 hover:underline">
+                privacidad@ecolector.com
+              </a>
+            </p>
+          </section>
 
-        <h2>2. Uso de Tu Información</h2>
-        <p>Tener información precisa sobre ti nos permite ofrecerte una experiencia fluida, eficiente y personalizada. Específicamente, podemos usar la información recopilada sobre ti a través de la Plataforma para:</p>
-        <ul>
-          <li>Crear y gestionar tu cuenta.</li>
-          <li>Procesar tus transacciones y enviarte información relacionada, incluidas confirmaciones de compra y facturas.</li>
-          <li>Enviarte correos electrónicos administrativos, técnicos o de seguridad.</li>
-          <li>Gestionar sorteos, promociones y concursos.</li>
-          <li>Solicitar comentarios y contactarte sobre tu uso de la Plataforma.</li>
-           <li>Resolver disputas y solucionar problemas.</li>
-           <li>Prevenir actividades fraudulentas, supervisar contra robos y proteger contra actividades delictivas.</li>
-           <li>Cumplir con las obligaciones legales y reglamentarias.</li>
-        </ul>
-        
-        <h2>3. Divulgación de Tu Información</h2>
-        <p>Podemos compartir información que hemos recopilado sobre ti en ciertas situaciones. Tu información puede ser divulgada de la siguiente manera:</p>
-        <ul>
-            <li><strong>Por Ley o para Proteger Derechos:</strong> Si creemos que la divulgación de información sobre ti es necesaria para responder a un proceso legal, para investigar o remediar posibles violaciones de nuestras políticas, o para proteger los derechos, la propiedad y la seguridad de otros, podemos compartir tu información según lo permita o exija cualquier ley, norma o reglamento aplicable.</li>
-            <li><strong>Proveedores de Servicios Externos:</strong> Podemos compartir tu información con terceros que realizan servicios para nosotros o en nuestro nombre, incluido el procesamiento de pagos, análisis de datos, entrega de correo electrónico, servicios de alojamiento, servicio al cliente y asistencia de marketing.</li>
-             <li><strong>Otros Usuarios:</strong> Si interactúas con otros usuarios de la Plataforma, esos usuarios pueden ver tu nombre, foto de perfil y descripciones de tu actividad, incluida el envío de invitaciones a otros usuarios, chatear con otros usuarios, dar me gusta a publicaciones, seguir blogs.</li>
-             <li><strong>Transferencias Comerciales:</strong> Podemos compartir o transferir tu información en relación con, o durante las negociaciones de, cualquier fusión, venta de activos de la empresa, financiación o adquisición de la totalidad o una parte de nuestro negocio a otra empresa.</li>
-        </ul>
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              2. Datos que recopilamos
+            </h2>
+            <p>Recopilamos la información que nos proporcionas al registrarte y usar la plataforma:</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>
+                <strong>Datos de identificación y contacto:</strong> nombre, correo electrónico,
+                y, si lo indicas, número de teléfono, dirección o datos de perfil (por ejemplo,
+                tipo de usuario: vendedor, comprador, recolector).
+              </li>
+              <li>
+                <strong>Datos de la cuenta:</strong> contraseña (almacenada de forma segura
+                y encriptada), preferencias de la cuenta y configuración.
+              </li>
+              <li>
+                <strong>Datos de uso:</strong> información que nuestros sistemas recopilan
+                al usar la plataforma (dirección IP, tipo de navegador, páginas visitadas,
+                horarios de acceso) para el correcto funcionamiento y la seguridad del servicio.
+              </li>
+              <li>
+                <strong>Contenido que publicas:</strong> ofertas, solicitudes, mensajes y
+                cualquier otro contenido que subas o publiques en la plataforma.
+              </li>
+            </ul>
+          </section>
 
-        <h2>4. Tecnologías de Seguimiento</h2>
-        <p><strong>Cookies y Web Beacons:</strong> Podemos usar cookies, web beacons, píxeles de seguimiento y otras tecnologías de seguimiento en la Plataforma para ayudar a personalizar la Plataforma y mejorar tu experiencia. Cuando accedes a la Plataforma, tu información personal no se recopila mediante el uso de tecnología de seguimiento. La mayoría de los navegadores están configurados para aceptar cookies de forma predeterminada. Puedes eliminar o rechazar las cookies, pero ten en cuenta que dicha acción podría afectar la disponibilidad y funcionalidad de la Plataforma.</p>
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              3. Finalidad del tratamiento
+            </h2>
+            <p>Utilizamos tus datos para:</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Crear y gestionar tu cuenta y permitirte acceder a la plataforma.</li>
+              <li>Poner en contacto a vendedores, compradores y recolectores según el uso que hagas del servicio.</li>
+              <li>Gestionar ofertas, solicitudes, mensajes y transacciones entre usuarios.</li>
+              <li>Enviar comunicaciones técnicas o administrativas necesarias para el servicio (por ejemplo, cambios de contraseña o avisos de seguridad).</li>
+              <li>Mejorar la plataforma, la seguridad y la experiencia de usuario (incluyendo análisis agregados o anónimos).</li>
+              <li>Cumplir obligaciones legales y resolver disputas cuando sea necesario.</li>
+            </ul>
+          </section>
 
-        <h2>5. Seguridad de Tu Información</h2>
-        <p>Utilizamos medidas de seguridad administrativas, técnicas y físicas para ayudar a proteger tu información personal. Si bien hemos tomado medidas razonables para proteger la información personal que nos proporcionas, ten en cuenta que a pesar de nuestros esfuerzos, ninguna medida de seguridad es perfecta o impenetrable, y no se puede garantizar ningún método de transmisión de datos contra ninguna interceptación u otro tipo de uso indebido.</p>
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              4. Base legal y consentimiento
+            </h2>
+            <p>
+              El tratamiento se basa en la ejecución del contrato (prestación del servicio),
+              en tu consentimiento cuando lo requiera la normativa aplicable, y en el
+              interés legítimo para la seguridad, mejora del servicio y cumplimiento legal.
+            </p>
+          </section>
 
-        <h2>6. Derechos de Privacidad (Ej. GDPR para Europa)</h2>
-        <p>Si resides en el Espacio Económico Europeo (EEE), tienes ciertos derechos de protección de datos. Nuestro objetivo es tomar medidas razonables para permitirte corregir, modificar, eliminar o limitar el uso de tus Datos Personales.</p>
-         <ul>
-            <li>El derecho a acceder, actualizar o eliminar la información que tenemos sobre ti.</li>
-            <li>El derecho de rectificación.</li>
-            <li>El derecho a oponerse.</li>
-            <li>El derecho de restricción.</li>
-            <li>El derecho a la portabilidad de los datos.</li>
-            <li>El derecho a retirar el consentimiento.</li>
-        </ul>
-        <p>Si deseas ejercer alguno de estos derechos, contáctanos.</p>
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              5. Compartición de datos
+            </h2>
+            <p>
+              No vendemos tus datos personales. Podemos compartir información con:
+            </p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Otros usuarios:</strong> según la funcionalidad que uses (por ejemplo, nombre y datos de perfil visibles en ofertas o mensajes).</li>
+              <li><strong>Proveedores de servicios:</strong> alojamiento, autenticación, análisis o soporte técnico, que actúan por nuestra cuenta y con obligaciones de confidencialidad.</li>
+              <li><strong>Autoridades:</strong> cuando la ley lo exija o para proteger derechos y seguridad.</li>
+            </ul>
+          </section>
 
-        <h2>7. Contacto</h2>
-        <p>Si tienes preguntas o comentarios sobre esta Política de Privacidad, por favor contáctanos en:</p>
-        <p>[Email de contacto para privacidad, ej. privacidad@e-colector.com]</p>
-        <p>[Dirección postal si es necesario]</p>
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              6. Conservación
+            </h2>
+            <p>
+              Conservamos tus datos mientras mantengas una cuenta activa y, tras la baja,
+              durante el tiempo necesario para cumplir obligaciones legales, resolver
+              reclamaciones o ejercer o defender derechos.
+            </p>
+          </section>
 
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              7. Seguridad
+            </h2>
+            <p>
+              Aplicamos medidas técnicas y organizativas adecuadas para proteger tus datos
+              frente a accesos no autorizados, pérdida o alteración. La transmisión de
+              datos sensibles se realiza mediante protocolos seguros. Ningún sistema es
+              infalible; te recomendamos usar contraseñas robustas y no compartir tu acceso.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              8. Tus derechos
+            </h2>
+            <p>
+              Puedes solicitar el acceso, rectificación, supresión, limitación del
+              tratamiento, portabilidad y oposición al tratamiento de tus datos, así como
+              retirar el consentimiento cuando este sea la base del tratamiento. Para
+              ejercer estos derechos, escríbenos a{' '}
+              <a href="mailto:privacidad@ecolector.com" className="text-emerald-600 hover:underline">
+                privacidad@ecolector.com
+              </a>
+              . Tienes derecho a presentar una reclamación ante la autoridad de protección
+              de datos competente si consideras que el tratamiento vulnera la normativa aplicable.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              9. Cookies y tecnologías similares
+            </h2>
+            <p>
+              Utilizamos cookies y tecnologías similares según se describe en nuestra{' '}
+              <a href="/legal/cookies" className="text-emerald-600 hover:underline">
+                Política de Cookies
+              </a>
+              .
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              10. Cambios en este aviso
+            </h2>
+            <p>
+              Nos reservamos el derecho de actualizar este Aviso de Privacidad. Los cambios
+              relevantes se comunicarán mediante un aviso en la plataforma o por correo.
+              La fecha de última actualización se indica al inicio del documento.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">
+              11. Contacto
+            </h2>
+            <p>
+              Para cualquier duda sobre el tratamiento de tus datos o el ejercicio de tus
+              derechos:{' '}
+              <a href="mailto:privacidad@ecolector.com" className="text-emerald-600 hover:underline">
+                privacidad@ecolector.com
+              </a>
+            </p>
+          </section>
+
+          <div className="mt-10 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
+            <p className="font-semibold text-amber-800 dark:text-amber-200 mb-1">
+              Nota legal (México)
+            </p>
+            <p className="text-amber-800 dark:text-amber-200">
+              La adaptación específica a la legislación mexicana en materia de datos
+              personales (Ley Federal de Protección de Datos Personales en Posesión de los
+              Particulares —LFPDPPP— y su reglamento) está pendiente de revisión por
+              asesoría legal. Los principios aquí descritos son de aplicación general; se
+              recomienda validar el texto final y el aviso de privacidad integral con un
+              profesional del derecho en México.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default PrivacyPolicy; 
+export default PrivacyPolicy;
