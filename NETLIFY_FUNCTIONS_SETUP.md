@@ -15,7 +15,7 @@ En tu sitio de Netlify ve a **Site settings → Environment variables** y agrega
   - Se usa para que los emails de confirmación/recuperación de Supabase NO apunten a `localhost`.
   - Debe ser el dominio público donde corre la app.
 
-- **SUPABASE_URL**: `https://tgadxzrlpauyjmwbqkqf.supabase.co`
+- **SUPABASE_URL**: `https://tu-proyecto.supabase.co`
 - **SUPABASE_SERVICE_ROLE_KEY**: *(Service role key de Supabase)*  
   - Supabase → Project Settings → API → **Service role key**
   - **No la pongas en el frontend**. Solo aquí.

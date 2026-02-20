@@ -5,7 +5,7 @@
 ### 1. Acceder a Supabase
 1. Ve a [https://supabase.com](https://supabase.com)
 2. Inicia sesión en tu proyecto: **E-Colector**
-3. Project ID: `tgadxzrlpauyjmwbqkqf`
+3. Project ID: `tu-project-id`
 
 ### 2. Ejecutar el esquema SQL
 1. En el panel de Supabase, ve a **SQL Editor**
@@ -37,8 +37,8 @@ Este script creará:
 ### 4. Configurar variables de entorno
 Las variables de entorno ya están configuradas en el archivo `.env`:
 ```
-VITE_SUPABASE_URL=https://tgadxzrlpauyjmwbqkqf.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_dGyP1IaMaiORG0PI2UOcEQ_RD6dGa3D
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu_anon_key_aqui
 ```
 
 ### 5. Probar la conexión
