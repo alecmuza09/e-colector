@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Instagram, Youtube } from 'lucide-react';
 
 export default function TopBar() {
   return (
@@ -16,28 +15,6 @@ export default function TopBar() {
           <span className="inline-block px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full font-medium">
             ♻️ Conectando Recicladores
           </span>
-        </div>
-
-        {/* Social Links */}
-        <div className="hidden sm:flex items-center gap-2">
-          <a
-            href="https://www.instagram.com/ecolector62"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 text-gray-500 hover:text-pink-500 transition-colors rounded-lg hover:bg-pink-50"
-            title="Instagram"
-          >
-            <Instagram className="w-5 h-5" />
-          </a>
-          <a
-            href="https://www.youtube.com/@e-colector"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 text-gray-500 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
-            title="YouTube"
-          >
-            <Youtube className="w-5 h-5" />
-          </a>
         </div>
 
         {/* Action Buttons */}

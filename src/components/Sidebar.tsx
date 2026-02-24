@@ -18,8 +18,6 @@ import {
   X,
   Bell,
   Search,
-  Instagram,
-  Youtube,
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -274,29 +272,6 @@ const Sidebar = () => {
           ))}
         </nav>
 
-        {/* Redes sociales */}
-        {!isCollapsed && (
-          <div className="px-4 py-2 border-t border-emerald-700 flex items-center gap-3 flex-shrink-0">
-            <a
-              href="https://www.instagram.com/ecolector62"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 text-emerald-300 hover:text-white transition-colors rounded"
-              title="Instagram"
-            >
-              <Instagram className="w-4 h-4" />
-            </a>
-            <a
-              href="https://www.youtube.com/@e-colector"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 text-emerald-300 hover:text-white transition-colors rounded"
-              title="YouTube"
-            >
-              <Youtube className="w-4 h-4" />
-            </a>
-          </div>
-        )}
 
         {/* Cerrar sesión */}
         <div className={`p-3 border-t border-emerald-700 flex-shrink-0 ${isCollapsed ? 'flex justify-center' : ''}`}>
