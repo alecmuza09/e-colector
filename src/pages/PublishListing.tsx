@@ -440,254 +440,386 @@ const PublishListing = () => {
     }
   };
 
-  // --- Renderizado --- //
+  const categoryEmoji: Record<string, string> = {
+    PET: '🧴', Cartón: '📦', Vidrio: '🫙', Metal: '🥫',
+    Electrónicos: '💻', Papel: '📰', HDPE: '🪣', Otros: '♻️',
+  };
 
+  const inputCls = (hasError?: string) =>
+    `w-full px-3 py-2.5 border rounded-xl text-sm bg-white dark:bg-gray-700 dark:text-white
+    focus:outline-none focus:ring-2 focus:ring-emerald-500 transition
+    ${hasError ? 'border-red-400 bg-red-50' : 'border-gray-300 dark:border-gray-600'}`;
+
+  const labelCls = 'block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5';
+
+  // --- Renderizado --- //
   if (submissionStatus === 'success') {
-     return (
-       <div className="container mx-auto px-4 py-12 text-center">
-            <CheckCircle className="h-16 w-16 text-emerald-500 mx-auto mb-4"/>
-            <h1 className="text-2xl font-bold text-gray-800 mb-3">{isEditing ? '¡Cambios guardados!' : '¡Publicación Guardada!'}</h1>
-            <p className="text-gray-600 mb-6">
-              {isEditing ? 'Tu publicación se actualizó correctamente. Serás redirigido a la ficha...' : 'Tu material ha sido publicado correctamente. Serás redirigido al dashboard...'}
-            </p>
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="h-10 w-10 text-emerald-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            {isEditing ? '¡Cambios guardados!' : '¡Material publicado!'}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            {isEditing
+              ? 'Tu publicación se actualizó correctamente. Redirigiendo...'
+              : 'Tu material ya está visible en la plataforma. Redirigiendo...'}
+          </p>
         </div>
+      </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-2xl">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-        {isEditing ? <Pencil className="w-6 h-6 text-emerald-700" /> : null}
-        {isEditing ? 'Editar publicación' : 'Publicar Nuevo Material'}
-      </h1>
-
-      {loadingExisting && (
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-sm text-gray-600 mb-4 flex items-center gap-2">
-          <Loader className="w-4 h-4 animate-spin" /> Cargando publicación...
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header de página */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            {isEditing ? <Pencil className="w-6 h-6 text-emerald-600" /> : <span className="text-2xl">📦</span>}
+            {isEditing ? 'Editar publicación' : 'Publicar nuevo material'}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {isEditing
+              ? 'Actualiza los datos de tu publicación.'
+              : 'Comparte el material que tienes disponible para venta o donación.'}
+          </p>
         </div>
-      )}
+      </div>
 
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 space-y-4">
-          
-          {/* Título */}
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Título del Material <span className="text-red-500">*</span> </label>
-            <input type="text" id="title" name="title" value={formData.title} onChange={handleChange} required placeholder="Ej: Botellas PET Cristal"
-                   className={`w-full p-2 border rounded-lg shadow-sm ${errors.title ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
-            {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {loadingExisting && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 p-4 mb-6 flex items-center gap-2 text-sm text-gray-600">
+            <Loader className="w-4 h-4 animate-spin text-emerald-600" /> Cargando publicación...
           </div>
+        )}
 
-          {/* Cantidad y Unidad */} 
-          <div className="grid grid-cols-2 gap-4">
-             <div>
-                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">Cantidad <span className="text-red-500">*</span></label>
-                <input type="number" id="quantity" name="quantity" value={formData.quantity} onChange={handleChange} required placeholder="Ej: 50"
-                       min="0.1" step="any" // Permitir decimales y valor mínimo pequeño
-                       className={`w-full p-2 border rounded-lg shadow-sm ${errors.quantity ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
-                {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>}
-             </div>
-             <div>
-                <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">Unidad <span className="text-red-500">*</span></label>
-                 <select id="unit" name="unit" value={formData.unit} onChange={handleChange} required
-                        className={`w-full p-2 border rounded-lg shadow-sm bg-white ${errors.unit ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500 h-[42px]`}> {/* Ajustar altura */} 
-                  <option value="" disabled>-- Unidad --</option>
-                  {UNITS.map(u => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                 </select>
-                {errors.unit && <p className="text-red-500 text-xs mt-1">{errors.unit}</p>}
-             </div>
-          </div>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* Categoría */}
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">Categoría <span className="text-red-500">*</span></label>
-            <select id="category" name="category" value={formData.category} onChange={handleChange} required
-                    className={`w-full p-2 border rounded-lg shadow-sm bg-white ${errors.category ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`}>
-              <option value="" disabled>-- Selecciona una categoría --</option>
-              {CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
-          </div>
+            {/* ── COLUMNA PRINCIPAL ── */}
+            <div className="lg:col-span-2 space-y-5">
 
-          {/* Tipo de publicación */}
-          <div>
-            <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">Tipo de Publicación <span className="text-red-500">*</span></label>
-            <select id="type" name="type" value={formData.type} onChange={handleChange} required
-                    className={`w-full p-2 border rounded-lg shadow-sm bg-white ${errors.type ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`}>
-              <option value="venta">💰 Venta</option>
-              <option value="donacion">🎁 Donación</option>
-            </select>
-            {errors.type && <p className="text-red-500 text-xs mt-1">{errors.type}</p>}
-          </div>
+              {/* Sección 1: Información básica */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+                <h2 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-base">
+                  <span className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full text-xs flex items-center justify-center font-bold">1</span>
+                  Información del material
+                </h2>
 
-          {/* Precio - Solo mostrar si es venta */}
-          {formData.type === 'venta' && (
-            <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Precio por Unidad Seleccionada ($) <span className="text-red-500">*</span></label>
-              <input type="number" id="price" name="price" value={formData.price} onChange={handleChange} required placeholder="Ej: 8.50"
-                     min="0.01" step="0.01"
-                     className={`w-full p-2 border rounded-lg shadow-sm ${errors.price ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
-              {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
-            </div>
-          )}
-          
-          {/* Municipio */}
-          <div>
-            <label htmlFor="municipality" className="block text-sm font-medium text-gray-700 mb-1">Municipio <span className="text-red-500">*</span></label>
-            <select id="municipality" name="municipality" value={formData.municipality} onChange={handleChange} required
-                    className={`w-full p-2 border rounded-lg shadow-sm bg-white ${errors.municipality ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`}>
-              <option value="" disabled>-- Selecciona un municipio --</option>
-              {MUNICIPALITY_NAMES.map(mun => (
-                <option key={mun} value={mun}>{mun}</option>
-              ))}
-            </select>
-            {errors.municipality && <p className="text-red-500 text-xs mt-1">{errors.municipality}</p>}
-          </div>
+                <div className="space-y-4">
+                  {/* Título */}
+                  <div>
+                    <label htmlFor="title" className={labelCls}>
+                      Título <span className="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="title" name="title" value={formData.title} onChange={handleChange}
+                      placeholder="Ej: Botellas PET Cristal" className={inputCls(errors.title)} />
+                    {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+                  </div>
 
-          {/* Dirección */}
-          <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Dirección <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <input
-                type="text"
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={(e) => {
-                  handleChange(e);
-                  setShowAddressSuggestions(true);
-                }}
-                onFocus={() => {
-                  if (addressSuggestions.length > 0) setShowAddressSuggestions(true);
-                }}
-                required
-                placeholder="Ej: Av. Revolución 123, Col. Centro"
-                   className={`w-full p-2 border rounded-lg shadow-sm ${errors.address ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`} />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 flex items-center gap-2">
-                {addressLoading ? <Loader className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                  {/* Categoría */}
+                  <div>
+                    <label htmlFor="category" className={labelCls}>
+                      Categoría <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {CATEGORIES.map(cat => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => { setFormData(p => ({ ...p, category: cat })); setErrors(p => ({ ...p, category: undefined })); }}
+                          className={`flex flex-col items-center py-2.5 px-1 rounded-xl border text-xs font-medium transition-all
+                            ${formData.category === cat
+                              ? 'bg-emerald-600 border-emerald-600 text-white shadow-md scale-105'
+                              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-emerald-400'
+                            }`}
+                        >
+                          <span className="text-lg mb-0.5">{categoryEmoji[cat]}</span>
+                          <span className="truncate w-full text-center">{cat}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
+                  </div>
+
+                  {/* Tipo */}
+                  <div>
+                    <label className={labelCls}>Tipo de publicación <span className="text-red-500">*</span></label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {([['venta', '💰', 'Venta', 'El comprador paga un precio acordado.'],
+                         ['donacion', '🎁', 'Donación', 'Entregas el material sin costo.']] as const).map(([val, emoji, label, desc]) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setFormData(p => ({ ...p, type: val, price: val === 'donacion' ? '' : p.price }))}
+                          className={`p-3 rounded-xl border text-left transition-all
+                            ${formData.type === val
+                              ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 ring-1 ring-emerald-500'
+                              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-emerald-400'
+                            }`}
+                        >
+                          <div className="text-lg mb-0.5">{emoji}</div>
+                          <div className={`text-sm font-semibold ${formData.type === val ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>{label}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
-            {addressError && <p className="text-red-500 text-xs mt-1">{addressError}</p>}
-            {showAddressSuggestions && addressSuggestions.length > 0 && (
-              <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                {addressSuggestions.map((s, idx) => (
-                  <button
-                    type="button"
-                    key={`${s.lat}-${s.lon}-${idx}`}
-                    onClick={() => applyAddressSuggestion(s)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 border-b border-gray-100 last:border-b-0"
-                  >
-                    {s.display_name}
-                  </button>
-                ))}
-              </div>
-            )}
-            <p className="text-xs text-gray-500 mt-2">
-              Sugerencias de dirección por OpenStreetMap. Al elegir una, el mapa coloca un punto estimado.
-            </p>
-          </div>
 
-          {/* Fotos */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Fotografías (opcional)</label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFilesChange}
-              className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-            />
-            {existingImageUrls.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs text-gray-500 mb-2">Fotos actuales</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {existingImageUrls.slice(0, 6).map((src, idx) => (
-                    <img key={`existing-${idx}`} src={src} className="h-20 w-full object-cover rounded border" alt={`existing-${idx}`} />
+              {/* Sección 2: Cantidad y precio */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+                <h2 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-base">
+                  <span className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full text-xs flex items-center justify-center font-bold">2</span>
+                  Cantidad {formData.type === 'venta' && 'y precio'}
+                </h2>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="quantity" className={labelCls}>Cantidad <span className="text-red-500">*</span></label>
+                    <input type="number" id="quantity" name="quantity" value={formData.quantity}
+                      onChange={handleChange} placeholder="Ej: 50" min="0.1" step="any" className={inputCls(errors.quantity)} />
+                    {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="unit" className={labelCls}>Unidad <span className="text-red-500">*</span></label>
+                    <select id="unit" name="unit" value={formData.unit} onChange={handleChange}
+                      className={inputCls(errors.unit)}>
+                      <option value="" disabled>Selecciona</option>
+                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    {errors.unit && <p className="text-red-500 text-xs mt-1">{errors.unit}</p>}
+                  </div>
+                </div>
+
+                {formData.type === 'venta' && (
+                  <div className="mt-4">
+                    <label htmlFor="price" className={labelCls}>
+                      Precio por unidad (MXN) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">$</span>
+                      <input type="number" id="price" name="price" value={formData.price}
+                        onChange={handleChange} placeholder="0.00" min="0.01" step="0.01"
+                        className={`${inputCls(errors.price)} pl-7`} />
+                    </div>
+                    {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                  </div>
+                )}
+              </div>
+
+              {/* Sección 3: Ubicación */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+                <h2 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-base">
+                  <span className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full text-xs flex items-center justify-center font-bold">3</span>
+                  Ubicación
+                </h2>
+
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="municipality" className={labelCls}>Municipio <span className="text-red-500">*</span></label>
+                    <select id="municipality" name="municipality" value={formData.municipality}
+                      onChange={handleChange} className={inputCls(errors.municipality)}>
+                      <option value="" disabled>Selecciona un municipio</option>
+                      {MUNICIPALITY_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    {errors.municipality && <p className="text-red-500 text-xs mt-1">{errors.municipality}</p>}
+                  </div>
+
+                  <div>
+                    <label htmlFor="address" className={labelCls}>Dirección <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input type="text" id="address" name="address" value={formData.address}
+                        onChange={e => { handleChange(e); setShowAddressSuggestions(true); }}
+                        onFocus={() => { if (addressSuggestions.length > 0) setShowAddressSuggestions(true); }}
+                        placeholder="Ej: Av. Revolución 123, Col. Centro" className={inputCls(errors.address)} />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        {addressLoading ? <Loader className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                      </div>
+                    </div>
+                    {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+                    {addressError && <p className="text-orange-500 text-xs mt-1">{addressError}</p>}
+                    {showAddressSuggestions && addressSuggestions.length > 0 && (
+                      <div className="mt-1 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-lg z-10 relative">
+                        {addressSuggestions.map((s, idx) => (
+                          <button type="button" key={`${s.lat}-${s.lon}-${idx}`}
+                            onClick={() => applyAddressSuggestion(s)}
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 border-b border-gray-100 last:border-b-0 text-gray-700">
+                            📍 {s.display_name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">Sugerencias vía OpenStreetMap. Al elegir una, el mapa se centra automáticamente.</p>
+                  </div>
+
+                  {/* Mapa */}
+                  <div>
+                    <p className={labelCls}>Ajustar pin en el mapa</p>
+                    <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm">
+                      <MapContainer center={[coords.latitude, coords.longitude]} zoom={14}
+                        scrollWheelZoom={true} style={{ height: 220, width: '100%' }}>
+                        <TileLayer
+                          attribution='&copy; OpenStreetMap contributors'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <MapRecenter latitude={coords.latitude} longitude={coords.longitude} />
+                        <MapPicker />
+                        <Marker position={[coords.latitude, coords.longitude]} icon={markerIcon} draggable
+                          eventHandlers={{ dragend: e => { const ll = (e.target as any).getLatLng(); setCoords({ latitude: ll.lat, longitude: ll.lng }); } }}
+                        />
+                      </MapContainer>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Haz clic en el mapa o arrastra el pin para ajustar la ubicación exacta.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección 4: Fotografías */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+                <h2 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-base">
+                  <span className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full text-xs flex items-center justify-center font-bold">4</span>
+                  Fotografías <span className="text-xs font-normal text-gray-400 ml-1">(opcional)</span>
+                </h2>
+
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-colors">
+                  <span className="text-3xl mb-2">📷</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Selecciona o arrastra tus fotos aquí</span>
+                  <span className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP · Máx. 10 imágenes</span>
+                  <input type="file" accept="image/*" multiple onChange={handleFilesChange} className="hidden" />
+                </label>
+
+                {(existingImageUrls.length > 0 || previewUrls.length > 0) && (
+                  <div className="mt-3">
+                    {existingImageUrls.length > 0 && (
+                      <>
+                        <p className="text-xs text-gray-500 mb-2 font-medium">Fotos actuales</p>
+                        <div className="grid grid-cols-4 gap-2 mb-3">
+                          {existingImageUrls.slice(0, 8).map((src, idx) => (
+                            <img key={`e-${idx}`} src={src} className="h-20 w-full object-cover rounded-lg border border-gray-200" alt="" />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {previewUrls.length > 0 && (
+                      <>
+                        <p className="text-xs text-gray-500 mb-2 font-medium">Nuevas fotos ({previewUrls.length})</p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {previewUrls.slice(0, 8).map((src, idx) => (
+                            <img key={`p-${idx}`} src={src} className="h-20 w-full object-cover rounded-lg border border-emerald-300" alt="" />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Sección 5: Descripción */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+                <h2 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-base">
+                  <span className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full text-xs flex items-center justify-center font-bold">5</span>
+                  Descripción <span className="text-red-500 font-normal text-sm">*</span>
+                </h2>
+                <textarea id="description" name="description" value={formData.description}
+                  onChange={handleChange} rows={4}
+                  placeholder="Describe el estado del material (limpio, prensado, sin impurezas…), condiciones de entrega, disponibilidad, etc."
+                  className={inputCls(errors.description)} />
+                <div className="flex justify-between items-center mt-1">
+                  {errors.description
+                    ? <p className="text-red-500 text-xs">{errors.description}</p>
+                    : <p className="text-xs text-gray-400">Mínimo 20 caracteres</p>
+                  }
+                  <span className={`text-xs ${formData.description.length < 20 ? 'text-gray-400' : 'text-emerald-600'}`}>
+                    {formData.description.length} car.
+                  </span>
+                </div>
+              </div>
+
+              {/* Error general */}
+              {errors.general && (
+                <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2 text-sm">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{errors.general}</span>
+                </div>
+              )}
+
+              {/* Submit */}
+              <button type="submit" disabled={isSubmitting}
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md hover:shadow-lg text-sm">
+                {isSubmitting
+                  ? <><Loader className="w-4 h-4 animate-spin" /> {isEditing ? 'Guardando...' : 'Publicando...'}</>
+                  : <><Save className="w-4 h-4" /> {isEditing ? 'Guardar cambios' : 'Publicar material'}</>
+                }
+              </button>
+            </div>
+
+            {/* ── SIDEBAR DERECHO ── */}
+            <div className="space-y-4">
+
+              {/* Previsualización */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm sticky top-4">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Vista previa</h3>
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="h-28 bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-emerald-900/20 dark:to-teal-900/20 flex items-center justify-center">
+                    {previewUrls[0] || existingImageUrls[0]
+                      ? <img src={previewUrls[0] || existingImageUrls[0]} className="h-full w-full object-cover" alt="" />
+                      : <span className="text-5xl">{formData.category ? categoryEmoji[formData.category] : '♻️'}</span>
+                    }
+                  </div>
+                  <div className="p-3">
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                      {formData.title || 'Título del material'}
+                      {formData.quantity && formData.unit ? ` (${formData.quantity} ${formData.unit})` : ''}
+                    </p>
+                    {formData.category && (
+                      <span className="inline-block text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full mt-1">
+                        {formData.category}
+                      </span>
+                    )}
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-base font-bold text-emerald-700 dark:text-emerald-400">
+                        {formData.type === 'donacion'
+                          ? 'Gratis'
+                          : formData.price
+                            ? `$${Number(formData.price).toFixed(2)}`
+                            : '$0.00'}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${formData.type === 'donacion' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {formData.type === 'donacion' ? 'Donación' : 'Venta'}
+                      </span>
+                    </div>
+                    {formData.municipality && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3" /> {formData.municipality}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Consejos */}
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Consejos</h3>
+                  {[
+                    '📸 Las fotos aumentan las respuestas x3.',
+                    '📝 Una buena descripción genera más confianza.',
+                    '📍 Una ubicación precisa ayuda a encontrarte.',
+                    '💰 El precio sugerido es flexible.',
+                  ].map((tip, i) => (
+                    <p key={i} className="text-xs text-gray-500 dark:text-gray-400">{tip}</p>
                   ))}
                 </div>
               </div>
-            )}
-            {previewUrls.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs text-gray-500 mb-2">Nuevas fotos a subir</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {previewUrls.slice(0, 6).map((src, idx) => (
-                    <img key={`preview-${idx}`} src={src} className="h-20 w-full object-cover rounded border" alt={`preview-${idx}`} />
-                  ))}
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-gray-500 mt-2">
-              Las fotos se suben a Supabase Storage (bucket <code>product-images</code>).
-            </p>
-          </div>
-
-          {/* Ubicación en mapa (pin) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación en el mapa</label>
-            <div className="rounded-lg overflow-hidden border border-gray-200">
-              <MapContainer
-                center={[coords.latitude, coords.longitude]}
-                zoom={14}
-                scrollWheelZoom={true}
-                style={{ height: 240, width: '100%' }}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <MapRecenter latitude={coords.latitude} longitude={coords.longitude} />
-                <MapPicker />
-                <Marker
-                  position={[coords.latitude, coords.longitude]}
-                  icon={markerIcon}
-                  draggable
-                  eventHandlers={{
-                    dragend: (e) => {
-                      const latlng = (e.target as any).getLatLng();
-                      setCoords({ latitude: latlng.lat, longitude: latlng.lng });
-                    },
-                  }}
-                />
-              </MapContainer>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Puedes mover el pin para ajustar la ubicación exacta (clic en el mapa o arrastrar el marcador).
-            </p>
-          </div>
-          
-          {/* Descripción */}
-          <div>
-             <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Descripción <span className="text-red-500">*</span> <span className="text-xs text-gray-500">(Mínimo 20 caracteres)</span></label>
-             <textarea id="description" name="description" value={formData.description} onChange={handleChange} required rows={4}
-                       placeholder="Describe el material, su estado (limpio, sucio, etc.), y cualquier detalle relevante para el comprador o recolector."
-                       className={`w-full p-2 border rounded-lg shadow-sm ${errors.description ? 'border-red-500' : 'border-gray-300'} focus:ring-emerald-500 focus:border-emerald-500`}></textarea>
-             {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
-          </div>
 
-           {/* Error General */} 
-           {errors.general && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <strong className="font-bold"><AlertCircle size={16} className="inline mr-2"/> Error: </strong>
-              <span className="block sm:inline">{errors.general}</span>
-            </div>
-           )}
-
-          {/* Botón de Envío */} 
-          <div className="pt-4 border-t border-gray-200">
-            <button type="submit" disabled={isSubmitting}
-                    className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-              {isSubmitting ? (isEditing ? 'Guardando...' : 'Publicando...') : <><Save size={18}/> {isEditing ? 'Guardar cambios' : 'Publicar Material'}</>}
-            </button>
           </div>
-
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };
