@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Recycle, Bell, Menu, X, User, LogOut, LogIn, UserPlus, LayoutDashboard, Heart, MapPin, Plus, Search } from 'lucide-react';
+import { Recycle, Bell, Menu, X, User, LogOut, LogIn, UserPlus, LayoutDashboard, Heart, MapPin, Plus, Search, Instagram, Youtube } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -49,6 +49,28 @@ const Navbar = () => {
               <Plus size={18} />
               <span>Publicar</span>
             </Link>
+          </div>
+
+          {/* Social Links */}
+          <div className="hidden md:flex items-center gap-1">
+            <a
+              href="https://www.instagram.com/ecolector62"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-pink-500 dark:hover:text-pink-400 transition-colors rounded-lg hover:bg-pink-50 dark:hover:bg-pink-900/20"
+              title="Instagram"
+            >
+              <Instagram className="h-5 w-5" />
+            </a>
+            <a
+              href="https://www.youtube.com/@e-colector"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+              title="YouTube"
+            >
+              <Youtube className="h-5 w-5" />
+            </a>
           </div>
 
           {/* Right Actions */}
@@ -189,6 +211,15 @@ const Navbar = () => {
             <Link to="/explorar" className="block px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 font-medium text-sm" onClick={() => setIsMenuOpen(false)}>
               🗺️ Explorar Mapa
             </Link>
+            <div className="flex items-center gap-2 px-3 py-2">
+              <a href="https://www.instagram.com/ecolector62" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-pink-500 text-sm font-medium">
+                <Instagram className="h-4 w-4" /> Instagram
+              </a>
+              <span className="text-gray-300 dark:text-gray-600">·</span>
+              <a href="https://www.youtube.com/@e-colector" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-red-600 text-sm font-medium">
+                <Youtube className="h-4 w-4" /> YouTube
+              </a>
+            </div>
             
             {isAuthenticated ? (
               <>

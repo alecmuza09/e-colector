@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin, Heart, TrendingUp } from 'lucide-react';
+import { Facebook, Twitter, Linkedin, Instagram, Youtube, Mail, Phone, MapPin, Heart, TrendingUp } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -189,13 +189,22 @@ const Footer = () => {
                   <Linkedin className="w-5 h-5" />
                 </a>
                 <a 
-                  href="https://instagram.com" 
+                  href="https://www.instagram.com/ecolector62" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="text-gray-400 hover:text-emerald-400 transition-colors hover:scale-110 transform"
                   title="Instagram"
                 >
                   <Instagram className="w-5 h-5" />
+                </a>
+                <a 
+                  href="https://www.youtube.com/@e-colector" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-gray-400 hover:text-emerald-400 transition-colors hover:scale-110 transform"
+                  title="YouTube"
+                >
+                  <Youtube className="w-5 h-5" />
                 </a>
               </div>
             </div>
