@@ -47,9 +47,6 @@ const LoadingFallback = () => (
   </div>
 );
 
-// Rutas que muestran el sidebar (solo cuando autenticado)
-const SIDEBAR_ROUTES = ['/', '/explorar', '/dashboard', '/perfil', '/publicar', '/estadisticas', '/favoritos', '/mensajes', '/configuracion', '/listado', '/solicitud', '/oferta', '/recolector'];
-
 // Rutas sin header ni sidebar (pantallas de auth)
 const NO_HEADER_ROUTES = ['/login', '/registro', '/auth/callback'];
 
@@ -91,10 +88,9 @@ function AppContent() {
   const { isAuthenticated } = useAuth();
 
   const isNoHeader = NO_HEADER_ROUTES.includes(location.pathname);
-  const isInSidebarRoute = SIDEBAR_ROUTES.some(r =>
-    r === '/' ? location.pathname === '/' : location.pathname.startsWith(r)
-  );
-  const showSidebar = isAuthenticated && isInSidebarRoute && !isNoHeader;
+  // Sidebar para autenticados en todas las páginas (excepto auth)
+  const showSidebar = isAuthenticated && !isNoHeader;
+  // Navbar para visitantes en todas las páginas (excepto auth)
   const showNavbar = !isAuthenticated && !isNoHeader;
 
   // Pantallas de auth: sin header ni footer
