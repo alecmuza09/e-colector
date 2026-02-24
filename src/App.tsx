@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
+import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import { useAuth } from './context/AuthContext';
 // Eliminar importaciones estáticas de páginas que serán cargadas con lazy
@@ -46,88 +47,80 @@ const LoadingFallback = () => (
   </div>
 );
 
-// Rutas que SI necesitan sidebar
-const SIDEBAR_ROUTES = ['/explorar', '/dashboard', '/perfil', '/publicar', '/estadisticas', '/favoritos', '/mensajes', '/'];
+// Rutas que muestran el sidebar (solo cuando autenticado)
+const SIDEBAR_ROUTES = ['/', '/explorar', '/dashboard', '/perfil', '/publicar', '/estadisticas', '/favoritos', '/mensajes', '/configuracion'];
 
-// Rutas que NO deben mostrar sidebar
-const NO_SIDEBAR_ROUTES = ['/login', '/registro', '/auth/callback'];
+// Rutas sin header ni sidebar (pantallas de auth)
+const NO_HEADER_ROUTES = ['/login', '/registro', '/auth/callback'];
+
+const allRoutes = (
+  <>
+    <Route path="/" element={<Home />} />
+    <Route path="/listado/:id" element={<ListingDetail />} />
+    <Route path="/login" element={<Login />} />
+    <Route path="/registro" element={<Register />} />
+    <Route path="/auth/callback" element={<AuthCallback />} />
+    <Route path="/dashboard" element={<Dashboard />} />
+    <Route path="/perfil" element={<Profile />} />
+    <Route path="/publicar" element={<PublishListing />} />
+    <Route path="/publicar/:id" element={<PublishListing />} />
+    <Route path="/mensajes" element={<Mensajes />} />
+    <Route path="/favoritos" element={<Favoritos />} />
+    <Route path="/estadisticas" element={<Estadisticas />} />
+    <Route path="/configuracion" element={<Configuracion />} />
+    <Route path="/solicitud/:id" element={<SolicitudDetail />} />
+    <Route path="/oferta/:id" element={<OfertaDetail />} />
+    <Route path="/recolector/:id" element={<RecolectorProfile />} />
+    <Route path="/explorar" element={<ExploreMap />} />
+    <Route path="/acerca-de" element={<About />} />
+    <Route path="/blog" element={<Blog />} />
+    <Route path="/blog/:postId" element={<BlogPostPage />} />
+    <Route path="/precios" element={<Pricing />} />
+    <Route path="/contacto" element={<Contact />} />
+    <Route path="/recursos/guias" element={<Guides />} />
+    <Route path="/recursos/guias/:guideId" element={<GuideDetailPage />} />
+    <Route path="/recursos/centro-ayuda" element={<HelpCenter />} />
+    <Route path="/legal/privacidad" element={<PrivacyPolicy />} />
+    <Route path="/legal/terminos" element={<TermsOfService />} />
+    <Route path="/legal/cookies" element={<CookiePolicy />} />
+  </>
+);
 
 function AppContent() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
-  
-  // No mostrar sidebar en login y registro
-  if (NO_SIDEBAR_ROUTES.includes(location.pathname)) {
+
+  const isNoHeader = NO_HEADER_ROUTES.includes(location.pathname);
+  const isInSidebarRoute = SIDEBAR_ROUTES.some(r =>
+    r === '/' ? location.pathname === '/' : location.pathname.startsWith(r)
+  );
+  const showSidebar = isAuthenticated && isInSidebarRoute && !isNoHeader;
+  const showNavbar = !isAuthenticated && !isNoHeader;
+
+  // Pantallas de auth: sin header ni footer
+  if (isNoHeader) {
     return (
       <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900">
         <main className="flex-1 flex flex-col w-full">
           <div className="flex-grow">
             <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/registro" element={<Register />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-              </Routes>
+              <Routes>{allRoutes}</Routes>
             </Suspense>
           </div>
-          <Footer />
         </main>
       </div>
     );
   }
-  
-  // Mostrar sidebar en todas las rutas, pero en "/" solo si está autenticado
-  const shouldShowSidebar = location.pathname === '/' 
-    ? isAuthenticated 
-    : SIDEBAR_ROUTES.some(route => location.pathname.startsWith(route));
 
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar - Solo en rutas específicas */}
-      {shouldShowSidebar && <Sidebar />}
-      
-      <main className="flex-1 flex flex-col">
+      {showSidebar && <Sidebar />}
+      <main className="flex-1 flex flex-col min-w-0">
+        {showNavbar && <Navbar />}
         <div className="flex-grow">
-            {/* Envolver Routes con Suspense */}
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-                {/* Rutas Principales */}
-                <Route path="/" element={<Home />} />
-                <Route path="/listado/:id" element={<ListingDetail />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/registro" element={<Register />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                
-                {/* Rutas Protegidas (requieren login) */}
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/perfil" element={<Profile />} />
-                <Route path="/publicar" element={<PublishListing />} />
-                <Route path="/publicar/:id" element={<PublishListing />} />
-                <Route path="/mensajes" element={<Mensajes />} />
-                <Route path="/favoritos" element={<Favoritos />} />
-                <Route path="/estadisticas" element={<Estadisticas />} />
-                <Route path="/configuracion" element={<Configuracion />} />
-                
-                {/* Rutas de Detalles */}
-                <Route path="/solicitud/:id" element={<SolicitudDetail />} />
-                <Route path="/oferta/:id" element={<OfertaDetail />} />
-                <Route path="/recolector/:id" element={<RecolectorProfile />} /> 
-
-                {/* Rutas Públicas */}
-                <Route path="/explorar" element={<ExploreMap />} /> 
-                <Route path="/acerca-de" element={<About />} />
-                <Route path="/blog" element={<Blog />} />
-                <Route path="/blog/:postId" element={<BlogPostPage />} />
-                <Route path="/precios" element={<Pricing />} />
-                <Route path="/contacto" element={<Contact />} />
-                <Route path="/recursos/guias" element={<Guides />} />
-                <Route path="/recursos/guias/:guideId" element={<GuideDetailPage />} />
-                <Route path="/recursos/centro-ayuda" element={<HelpCenter />} />
-                <Route path="/legal/privacidad" element={<PrivacyPolicy />} />
-                <Route path="/legal/terminos" element={<TermsOfService />} />
-                <Route path="/legal/cookies" element={<CookiePolicy />} />
-              </Routes>
-            </Suspense>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>{allRoutes}</Routes>
+          </Suspense>
         </div>
         <Footer />
       </main>
