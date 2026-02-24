@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -35,6 +35,7 @@ export default function HomeAuthenticated() {
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   // Cargar productos desde Supabase
   useEffect(() => {
@@ -258,10 +259,17 @@ export default function HomeAuthenticated() {
                         <span className="font-medium">Vendedor:</span> {product.seller}
                       </p>
                       <div className="flex gap-2">
-                        <button className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors text-sm">
+                        <button
+                          onClick={() => navigate(`/listado/${product.id}`)}
+                          className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors text-sm"
+                        >
                           Contactar
                         </button>
-                        <button className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 text-gray-600 dark:text-gray-400 rounded-lg transition-colors">
+                        <button
+                          onClick={() => navigate(`/listado/${product.id}`)}
+                          className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 text-gray-600 dark:text-gray-400 rounded-lg transition-colors"
+                          title="Ver detalle"
+                        >
                           <MessageCircle className="w-5 h-5" />
                         </button>
                       </div>

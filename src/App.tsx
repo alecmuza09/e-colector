@@ -48,7 +48,7 @@ const LoadingFallback = () => (
 );
 
 // Rutas que muestran el sidebar (solo cuando autenticado)
-const SIDEBAR_ROUTES = ['/', '/explorar', '/dashboard', '/perfil', '/publicar', '/estadisticas', '/favoritos', '/mensajes', '/configuracion'];
+const SIDEBAR_ROUTES = ['/', '/explorar', '/dashboard', '/perfil', '/publicar', '/estadisticas', '/favoritos', '/mensajes', '/configuracion', '/listado', '/solicitud', '/oferta', '/recolector'];
 
 // Rutas sin header ni sidebar (pantallas de auth)
 const NO_HEADER_ROUTES = ['/login', '/registro', '/auth/callback'];
