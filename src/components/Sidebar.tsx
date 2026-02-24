@@ -146,13 +146,14 @@ const Sidebar = () => {
         {/* Header del sidebar */}
         <div className="p-4 border-b border-emerald-700 flex items-center justify-between flex-shrink-0">
           {!isCollapsed && (
-            <Link to="/" onClick={handleLinkClick} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <span className="text-2xl">♻️</span>
-              <span className="font-bold text-lg text-white">e-colector</span>
+            <Link to="/" onClick={handleLinkClick} className="hover:opacity-80 transition-opacity">
+              <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain brightness-0 invert" />
             </Link>
           )}
           {isCollapsed && (
-            <span className="text-2xl mx-auto">♻️</span>
+            <Link to="/" onClick={handleLinkClick} className="mx-auto hover:opacity-80 transition-opacity">
+              <img src="/assets/images/logo-icon.png" alt="e-colector" className="h-10 w-10 object-contain" />
+            </Link>
           )}
           {/* Cerrar en móvil / colapsar en escritorio */}
           <button

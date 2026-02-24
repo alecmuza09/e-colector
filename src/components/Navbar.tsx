@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Recycle, Bell, Menu, X, User, LogOut, LogIn, UserPlus, LayoutDashboard, Heart, MapPin, Plus, Search, Instagram, Youtube } from 'lucide-react';
+import { Bell, Menu, X, User, LogOut, LayoutDashboard, Heart, MapPin, Plus, Instagram, Youtube } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -26,9 +26,8 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Logo */}
           <div className="flex items-center flex-shrink-0">
-            <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-              <span className="text-2xl">♻️</span>
-              <span className="text-lg font-bold text-gray-900 dark:text-white hidden sm:inline">e-colector</span>
+            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+              <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain" />
             </Link>
           </div>
 

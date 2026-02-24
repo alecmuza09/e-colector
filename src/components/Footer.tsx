@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Twitter, Linkedin, Instagram, Youtube, Mail, Phone, MapPin, Heart, TrendingUp } from 'lucide-react';
+import { Facebook, Linkedin, Instagram, Youtube, Mail, Phone, MapPin, Heart, TrendingUp } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -33,8 +33,7 @@ const Footer = () => {
           {/* Company Info */}
           <div className="col-span-1 sm:col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-3xl">♻️</span>
-              <span className="text-xl font-bold text-white">e-colector</span>
+              <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain brightness-0 invert" />
             </div>
             <p className="text-sm text-gray-400 mb-4">
               La plataforma número 1 para conectar recolectores, generadores y empresas recicladoras en México.
@@ -169,15 +168,6 @@ const Footer = () => {
                   title="Facebook"
                 >
                   <Facebook className="w-5 h-5" />
-                </a>
-                <a 
-                  href="https://twitter.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-gray-400 hover:text-emerald-400 transition-colors hover:scale-110 transform"
-                  title="Twitter"
-                >
-                  <Twitter className="w-5 h-5" />
                 </a>
                 <a 
                   href="https://www.linkedin.com/company/e-colector/" 

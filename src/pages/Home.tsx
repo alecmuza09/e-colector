@@ -6,7 +6,6 @@ import 'leaflet/dist/leaflet.css';
 import { Product } from '../data/mockProducts';
 import { getProducts } from '../services/products';
 import { Filter, MapPin, Package, Search, CheckCircle, Layers, Info, Eye } from 'lucide-react';
-import TopBar from '../components/TopBar';
 import { useAuth } from '../context/AuthContext';
 import HomeAuthenticated from './HomeAuthenticated';
 
@@ -298,9 +297,6 @@ const Home = () => {
   // Si no está autenticado, mostrar la home pública
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Top Bar */}
-      <TopBar />
-      
       <div className="bg-gradient-to-b from-emerald-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
         {/* ============ HERO SECTION ============ */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-900 dark:to-emerald-800 text-white pt-12 pb-16 md:pt-20 md:pb-24">

@@ -1,15 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Leaf, Menu, Instagram, Youtube } from 'lucide-react';
+import { Instagram, Youtube } from 'lucide-react';
 
 export default function TopBar() {
   return (
     <div className="sticky top-0 z-50 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-b border-emerald-200 dark:border-emerald-700 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          {/* Logo Image */}
-          <img src="/assets/images/logo-white.png" alt="E-colector" className="h-20 object-contain" />
+        <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+          <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain" />
         </Link>
 
         {/* Tagline - Hidden on small screens */}
