@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
@@ -38,6 +38,15 @@ const Mensajes = lazy(() => import('./pages/Mensajes'));
 const Favoritos = lazy(() => import('./pages/Favoritos'));
 const Estadisticas = lazy(() => import('./pages/Estadisticas'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
+
+// Scroll al inicio en cada cambio de ruta
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [pathname]);
+  return null;
+}
 
 // Componente simple de carga
 const LoadingFallback = () => (
@@ -127,6 +136,7 @@ function AppContent() {
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <AppContent />
     </Router>
   );
