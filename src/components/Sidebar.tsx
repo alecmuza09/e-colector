@@ -187,7 +187,7 @@ const Sidebar = () => {
         <div className="p-4 border-b border-emerald-700 flex items-center justify-between flex-shrink-0">
           {!isCollapsed ? (
             <Link to="/" onClick={handleLinkClick} className="hover:opacity-80 transition-opacity">
-              <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain brightness-0 invert" />
+              <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain" />
             </Link>
           ) : (
             <Link to="/" onClick={handleLinkClick} className="mx-auto hover:opacity-80 transition-opacity">
