@@ -33,7 +33,7 @@ const Footer = () => {
           {/* Company Info */}
           <div className="col-span-1 sm:col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain" />
+              <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain mix-blend-screen" />
             </div>
             <p className="text-sm text-gray-400 mb-4">
               La plataforma número 1 para conectar recolectores, generadores y empresas recicladoras en México.
