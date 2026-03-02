@@ -1,169 +1,243 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { FileText, Search, MessageSquare, BarChart2, Star, PlusCircle, Map, ShoppingCart, PackageCheck, User } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import {
+  Search, Package, MessageSquare, ShoppingCart, MapPin,
+  Clock, CheckCircle, XCircle, TrendingUp, ExternalLink, Loader, ChevronRight
+} from 'lucide-react';
 
-// --- Subcomponente reutilizable para secciones del Dashboard --- 
-interface SectionProps {
+type OfferRow = {
+  id: string;
+  price: number;
+  quantity: string | null;
+  status: string;
+  created_at: string;
+  product?: { title?: string; category?: string; municipality?: string } | null;
+};
+
+type ProductRow = {
+  id: string;
   title: string;
-  icon?: React.ElementType;
-  children: React.ReactNode;
-}
-const DashboardSection: React.FC<SectionProps> = ({ title, icon: Icon, children }) => (
-  <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 shadow-sm">
-    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-      {Icon && <Icon size={18} className="text-emerald-600"/>}
-      {title}
-    </h3>
-    <div className="text-sm text-gray-700 space-y-3">
-      {children}
+  category: string;
+  price: number;
+  type: string;
+  municipality: string;
+  image_url: string | null;
+};
+
+const statusBadge = (s: string) => {
+  const m: Record<string, string> = {
+    pendiente: 'bg-yellow-100 text-yellow-700',
+    aceptada:  'bg-emerald-100 text-emerald-700',
+    rechazada: 'bg-red-100 text-red-700',
+  };
+  const label: Record<string, string> = {
+    pendiente: 'Pendiente', aceptada: 'Aceptada', rechazada: 'Rechazada',
+  };
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${m[s] || 'bg-gray-100 text-gray-600'}`}>
+      {label[s] || s}
+    </span>
+  );
+};
+
+const StatCard = ({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: React.ElementType; color: string }) => (
+  <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+      <Icon className="w-6 h-6" />
+    </div>
+    <div>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
     </div>
   </div>
 );
 
-// --- Componente Principal BuyerDashboard --- 
-const BuyerDashboard = () => {
-  const { userName } = useAuth();
+export default function BuyerDashboard() {
+  const { userName, userProfile } = useAuth();
+  const [offers, setOffers] = useState<OfferRow[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // --- Datos Simulados --- 
-  const activeRequests = [
-    { id: 'reqA', material: 'PET Cristal', quantity: '500kg', status: 'Activa', offers: 2 },
-    { id: 'reqB', material: 'Cartón OCC', quantity: '1 Ton', status: 'Activa', offers: 0 },
-    { id: 'reqC', material: 'Aluminio (Latas)', quantity: '100kg', status: 'Pausada', offers: 1 },
-  ];
+  useEffect(() => {
+    if (!userProfile?.id) return;
 
-  const nearbyMaterials = [
-    { id: 'matA', title: '♻️ Botellas PET (50kg)', seller: 'Vecino Eco', price: '8.50', distance: '1.2km' },
-    { id: 'matB', title: '📦 Cartón Corrugado (Grande)', seller: 'Tiendita Verde', price: '2.00', distance: '3.5km' },
-  ];
+    // Cargar mis ofertas enviadas
+    const fetchOffers = async () => {
+      setLoadingOffers(true);
+      const { data } = await supabase
+        .from('offers')
+        .select('id,price,quantity,status,created_at,product:product_id(title,category,municipality)')
+        .eq('buyer_id', userProfile.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      setOffers((data || []) as any);
+      setLoadingOffers(false);
+    };
 
-  const sentOffers = [
-    { id: 'offA', material: 'HDPE Natural', seller: 'Plásticos Del Norte', quantity: '200kg', price: '12.00', status: 'Pendiente' },
-    { id: 'offB', material: 'Vidrio Claro', seller: 'Juan Pérez', quantity: '30kg', price: '1.50', status: 'Aceptada' },
-  ];
+    // Cargar materiales disponibles
+    const fetchProducts = async () => {
+      setLoadingProducts(true);
+      const { data } = await supabase
+        .from('products')
+        .select('id,title,category,price,type,municipality,image_url')
+        .eq('status', 'activo')
+        .neq('user_id', userProfile.id)
+        .order('created_at', { ascending: false })
+        .limit(6);
+      setProducts((data || []) as any);
+      setLoadingProducts(false);
+    };
 
-  const stats = {
-    comprasMes: 5,
-    materialMasComprado: 'PET',
-    ahorroEstimado: 750,
+    fetchOffers();
+    fetchProducts();
+  }, [userProfile?.id]);
+
+  const totalOffers   = offers.length;
+  const accepted      = offers.filter(o => o.status === 'aceptada').length;
+  const pending       = offers.filter(o => o.status === 'pendiente').length;
+
+  const categoryEmoji: Record<string, string> = {
+    PET: '♳', Cartón: '📦', Metal: '🔩', Vidrio: '🍶',
+    Electrónicos: '💻', Textiles: '👕', Plástico: '♴', Orgánico: '🌿',
   };
 
-  const suggestedCollectors = [
-    { id: 'colA', name: 'Recolectora Veloz', rating: 4.8, zones: ['Monterrey Centro', 'San Pedro'] },
-    { id: 'colB', name: 'EcoTransporte Regio', rating: 4.5, zones: ['Apodaca', 'Escobedo'] },
-  ];
-
   return (
-    <div>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+      {/* Hero banner */}
+      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold">Panel de Comprador</h2>
-            <p className="text-gray-600">¡Bienvenido, {userName || 'Comprador'}!</p>
+            <span className="text-xs font-semibold bg-white/20 px-3 py-1 rounded-full">🏢 Comprador</span>
+            <h1 className="text-2xl font-bold mt-2">¡Hola, {userName || 'Comprador'}!</h1>
+            <p className="text-blue-100 text-sm mt-1">Encuentra materiales reciclables y gestiona tus compras.</p>
           </div>
-          <div className="flex gap-2">
-            <Link 
-              to="/explorar" // Link a buscar materiales
-              className="bg-white border border-emerald-600 text-emerald-600 px-4 py-2 rounded-lg hover:bg-emerald-50 transition-colors text-sm font-medium flex items-center gap-2"
-            >
-              <Search size={16}/> Buscar Materiales
+          <div className="flex gap-2 flex-wrap">
+            <Link to="/explorar"
+              className="flex items-center gap-1.5 bg-white text-blue-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
+              <Search className="w-4 h-4" /> Explorar materiales
             </Link>
-             <Link 
-              to="/crear-solicitud" // TODO: Crear esta ruta
-              className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2"
-            >
-              <PlusCircle size={16}/> Crear Solicitud
+            <Link to="/mensajes"
+              className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+              <MessageSquare className="w-4 h-4" /> Mensajes
             </Link>
           </div>
         </div>
+      </div>
 
-      {/* --- Secciones del Dashboard --- */} 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* 1. Mis Solicitudes Activas */}
-        <DashboardSection title="Mis Solicitudes Activas" icon={FileText}>
-            {activeRequests.map(req => (
-                <div key={req.id} className="p-3 bg-gray-50 rounded border border-gray-200">
-                    <p className="font-medium">{req.material} ({req.quantity})</p>
-                    <div className="flex justify-between items-center text-xs mt-1">
-                        <span className={`px-1.5 py-0.5 rounded ${req.status === 'Activa' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{req.status}</span>
-                        <span>{req.offers} Ofertas Recibidas</span>
-                        <Link to={`/solicitud/${req.id}`} className="text-emerald-600 hover:underline">Ver Detalles</Link>
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatCard label="Ofertas enviadas"  value={totalOffers} icon={ShoppingCart}   color="bg-blue-100 text-blue-600" />
+        <StatCard label="Aceptadas"          value={accepted}    icon={CheckCircle}    color="bg-emerald-100 text-emerald-600" />
+        <StatCard label="Pendientes"         value={pending}     icon={Clock}          color="bg-yellow-100 text-yellow-600" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Mis ofertas enviadas */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4 text-blue-500" /> Mis ofertas enviadas
+            </h2>
+            <Link to="/mensajes" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              Ver mensajes <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {loadingOffers ? (
+              <div className="p-6 text-center"><Loader className="w-5 h-5 animate-spin mx-auto text-gray-400" /></div>
+            ) : offers.length === 0 ? (
+              <div className="p-6 text-center text-gray-400 text-sm">
+                Aún no has enviado ofertas.
+                <br />
+                <Link to="/explorar" className="text-blue-600 hover:underline mt-1 inline-block">Explorar materiales →</Link>
+              </div>
+            ) : (
+              offers.slice(0, 6).map(o => (
+                <div key={o.id} className="px-5 py-3 flex items-center gap-3">
+                  <div className="text-2xl w-8 flex-shrink-0">
+                    {categoryEmoji[(o.product as any)?.category] || '♻️'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">
+                      {(o.product as any)?.title || 'Material'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                        <MapPin className="w-3 h-3" />{(o.product as any)?.municipality || '—'}
+                      </span>
+                      <span className="text-xs text-emerald-600 font-medium">${Number(o.price).toFixed(2)}</span>
                     </div>
-                </div>
-            ))}
-             {activeRequests.length === 0 && <p className="italic text-gray-500">No tienes solicitudes activas.</p>}
-        </DashboardSection>
-
-        {/* 2. Materiales Disponibles Cerca */}
-        <DashboardSection title="Materiales Disponibles Cerca" icon={Map}>
-            {nearbyMaterials.map(mat => (
-                <div key={mat.id} className="p-3 bg-gray-50 rounded border border-gray-200">
-                    <p className="font-medium text-sm"><Link to={`/listado/${mat.id}`} className="hover:text-emerald-700">{mat.title}</Link></p>
-                     <div className="flex justify-between items-center text-xs mt-1 text-gray-600">
-                        <span>Vendedor: {mat.seller}</span>
-                        <span>${mat.price}/kg</span>
-                        <span>~{mat.distance}</span>
-                     </div>
-                </div>
-            ))}
-            {nearbyMaterials.length === 0 && <p className="italic text-gray-500">No hay materiales disponibles cerca ahora mismo.</p>}
-            <Link to="/explorar" className="text-emerald-600 hover:underline text-xs block mt-2">Ver todos los materiales cercanos</Link>
-        </DashboardSection>
-
-        {/* 3. Ofertas Enviadas y Estado */}
-        <DashboardSection title="Ofertas Enviadas y Estado" icon={MessageSquare}>
-           {sentOffers.map(offer => (
-               <div key={offer.id} className="p-3 bg-gray-50 rounded border border-gray-200">
-                  <p className="font-medium text-sm">Oferta por {offer.material} ({offer.quantity}) a {offer.seller}</p>
-                  <div className="flex justify-between items-center text-xs mt-1">
-                      <span className={`px-1.5 py-0.5 rounded ${offer.status === 'Pendiente' ? 'bg-yellow-100 text-yellow-700' : offer.status === 'Aceptada' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{offer.status}</span>
-                      <span>${offer.price}/kg</span>
-                      <Link to={`/oferta/${offer.id}`} className="text-emerald-600 hover:underline">Ver Oferta</Link>
                   </div>
-               </div>
-           ))}
-           {sentOffers.length === 0 && <p className="italic text-gray-500">No has enviado ninguna oferta recientemente.</p>}
-        </DashboardSection>
+                  {statusBadge(o.status)}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
 
-        {/* 4. Estadísticas Personales */}
-        <DashboardSection title="Estadísticas Personales" icon={BarChart2}>
-           <div className="flex justify-around text-center">
-              <div>
-                  <p className="text-2xl font-semibold text-emerald-600">{stats.comprasMes}</p>
-                  <p className="text-xs text-gray-500">Compras este Mes</p>
-              </div>
-               <div>
-                  <p className="text-lg font-medium text-emerald-600">{stats.materialMasComprado}</p>
-                  <p className="text-xs text-gray-500">Material Más Comprado</p>
-              </div>
-               <div>
-                  <p className="text-lg font-medium text-emerald-600">${stats.ahorroEstimado}</p>
-                  <p className="text-xs text-gray-500">Ahorro Estimado</p>
-              </div>
-           </div>
-           {/* Aquí podría ir un gráfico pequeño */} 
-        </DashboardSection>
-        
-         {/* 5. Recolectores Sugeridos / Verificados */}
-         <DashboardSection title="Recolectores Sugeridos / Verificados" icon={Star}>
-           {suggestedCollectors.map(col => (
-               <div key={col.id} className="p-3 bg-gray-50 rounded border border-gray-200 flex justify-between items-center">
-                  <div>
-                     <p className="font-medium text-sm flex items-center gap-1"><User size={14}/> {col.name}</p>
-                     <p className="text-xs text-gray-500 mt-1">Zonas: {col.zones.join(', ')}</p>
+        {/* Materiales disponibles */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Package className="w-4 h-4 text-blue-500" /> Materiales disponibles
+            </h2>
+            <Link to="/explorar" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              Ver mapa <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {loadingProducts ? (
+              <div className="p-6 text-center"><Loader className="w-5 h-5 animate-spin mx-auto text-gray-400" /></div>
+            ) : products.length === 0 ? (
+              <div className="p-6 text-center text-gray-400 text-sm">No hay materiales disponibles en este momento.</div>
+            ) : (
+              products.map(p => (
+                <Link key={p.id} to={`/listado/${p.id}`}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group">
+                  <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
+                    {p.image_url
+                      ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center text-2xl">{categoryEmoji[p.category] || '♻️'}</div>
+                    }
                   </div>
-                   <div className="text-right">
-                       <span className="text-yellow-500 flex items-center gap-0.5"><Star size={14} fill="currentColor"/> {col.rating.toFixed(1)}</span>
-                       <Link to={`/recolector/${col.id}`} className="text-emerald-600 hover:underline text-xs block mt-1">Ver Perfil</Link>
-                   </div>
-               </div>
-           ))}
-           {suggestedCollectors.length === 0 && <p className="italic text-gray-500">No hay recolectores sugeridos por ahora.</p>}
-        </DashboardSection>
-        
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate group-hover:text-blue-600">{p.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-400 flex items-center gap-0.5"><MapPin className="w-3 h-3" />{p.municipality}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${p.type === 'donacion' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {p.type === 'donacion' ? 'Donación' : `$${p.price}`}
+                      </span>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-blue-500 flex-shrink-0" />
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Acciones rápidas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { to: '/explorar', icon: Search,       label: 'Explorar materiales', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+          { to: '/mensajes', icon: MessageSquare, label: 'Mis mensajes',        color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          { to: '/favoritos', icon: TrendingUp,   label: 'Mis favoritos',       color: 'bg-amber-50 text-amber-700 border-amber-200' },
+          { to: '/perfil',   icon: XCircle,       label: 'Mi perfil',           color: 'bg-purple-50 text-purple-700 border-purple-200' },
+        ].map(a => (
+          <Link key={a.to} to={a.to}
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border text-center hover:shadow-sm transition-shadow ${a.color}`}>
+            <a.icon className="w-5 h-5" />
+            <span className="text-xs font-medium">{a.label}</span>
+          </Link>
+        ))}
       </div>
     </div>
   );
-};
-
-export default BuyerDashboard; 
+}

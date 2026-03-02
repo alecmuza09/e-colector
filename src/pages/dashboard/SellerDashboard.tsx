@@ -1,280 +1,243 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Product } from '../../data/mockProducts';
 import { supabase } from '../../lib/supabase';
-import { Edit, Pause, Trash2, Check, RefreshCw, MessageSquare, AlertTriangle, MapPin, PlusCircle, Package, DollarSign, BarChart, Clock, Loader } from 'lucide-react';
+import {
+  Package, PlusCircle, DollarSign, Clock, CheckCircle, MapPin,
+  Edit, Trash2, Loader, ChevronRight, TrendingUp, MessageSquare, ExternalLink
+} from 'lucide-react';
 
-// Definir un tipo que incluya el estado que añadimos en PublishListing
-type UserProduct = Product & { status: 'activo' | 'pausado' | 'vendido' | 'expirado' };
+type UserProduct = {
+  id: string; title: string; category: string; price: number;
+  type: string; municipality: string; status: string; image_url: string | null;
+  created_at: string;
+};
+type OfferRow = {
+  id: string; price: number; quantity: string | null; status: string;
+  created_at: string;
+  product?: { title?: string } | null;
+  buyer?: { full_name?: string; email?: string } | null;
+};
 
-// --- Subcomponente para Tarjeta de Publicación (Dashboard Vendedor) ---
-const PublicationCard: React.FC<{ product: UserProduct; status: UserProduct['status'] }> = ({ product, status }) => {
-  const statusStyles = {
-    activo: 'bg-emerald-100 text-emerald-700',
-    pausado: 'bg-yellow-100 text-yellow-700',
-    vendido: 'bg-blue-100 text-blue-700',
-    expirado: 'bg-gray-100 text-gray-500',
+const statusBadge = (s: string) => {
+  const styles: Record<string, string> = {
+    activo:    'bg-emerald-100 text-emerald-700',
+    pausado:   'bg-yellow-100 text-yellow-700',
+    vendido:   'bg-blue-100 text-blue-700',
+    expirado:  'bg-gray-100 text-gray-500',
+    pendiente: 'bg-yellow-100 text-yellow-700',
+    aceptada:  'bg-emerald-100 text-emerald-700',
+    rechazada: 'bg-red-100 text-red-700',
   };
-  // Actualizar regex para extraer cantidad y unidad (kg o Ton)
-  const quantityMatch = product.title.match(/\((\d*\.?\d+)\s*(kg|Ton)\)/i);
-  const quantity = quantityMatch ? `${quantityMatch[1]} ${quantityMatch[2]}` : 'N/A';
-  const titleWithoutQuantity = product.title.replace(/\s*\(.*\)/, '').trim(); // Título sin la parte de cantidad/unidad
-
+  const labels: Record<string, string> = {
+    activo: 'Activo', pausado: 'Pausado', vendido: 'Vendido', expirado: 'Expirado',
+    pendiente: 'Pendiente', aceptada: 'Aceptada', rechazada: 'Rechazada',
+  };
   return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-4">
-      <img src={product.imageUrl} alt={titleWithoutQuantity} className="w-full sm:w-24 h-24 object-cover rounded flex-shrink-0" />
-      <div className="flex-grow">
-        <div className="flex justify-between items-start mb-1">
-           <Link to={`/listado/${product.id}`} className="font-semibold text-gray-800 hover:text-emerald-600 text-sm sm:text-base">
-             {titleWithoutQuantity} {/* Mostrar título limpio */}
-           </Link>
-           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusStyles[status]}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
-        </div>
-        {/* Simular fecha de publicación */} 
-        <p className="text-xs text-gray-500 mb-2">Publicado: {new Date(Date.now() - Math.random() * 10 * 24 * 60 * 60 * 1000).toLocaleDateString()}</p>
-        <p className="text-sm text-gray-700 mb-3">Precio: ${product.price.toFixed(2)}/{product.title.match(/\(.*? (kg|Ton)\)/i)?.[1] || 'unidad'} | Cantidad aprox: {quantity}</p> 
-        <div className="flex flex-wrap gap-2 text-xs mt-auto">
-            {/* Botones varían según estado */} 
-            {status === 'activo' && <button className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"><Edit size={12}/> Editar</button>}
-            {status === 'activo' && <button className="flex items-center gap-1 bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200"><Pause size={12}/> Pausar</button>}
-            {status === 'pausado' && <button className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"><Check size={12}/> Reactivar</button>}
-            {(status === 'activo' || status === 'pausado') && <button className="flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"><Trash2 size={12}/> Eliminar</button>}
-            {status === 'activo' && <button className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"><Check size={12}/> Vendido</button>}
-            {status === 'expirado' && <button className="flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200"><RefreshCw size={12}/> Renovar</button>}
-        </div>
-         <p className="text-xs text-gray-400 mt-2">Visitas: {Math.floor(Math.random()*100)} | Ofertas: {Math.floor(Math.random()*5)}</p>
-      </div>
-    </div>
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${styles[s] || 'bg-gray-100 text-gray-600'}`}>
+      {labels[s] || s}
+    </span>
   );
 };
 
-// --- Subcomponente para Fila de Oferta Recibida --- 
-const OfferRow: React.FC<{ offer: any }> = ({ offer }) => {
-    const statusStyles = {
-    pendiente: 'bg-yellow-100 text-yellow-700',
-    aceptada: 'bg-green-100 text-green-700',
-    rechazada: 'bg-red-100 text-red-700',
-    contraoferta: 'bg-blue-100 text-blue-700',
-  };
-  return (
-      <div className="bg-white p-3 rounded border border-gray-100 mb-2 flex flex-col sm:flex-row justify-between items-start gap-2">
-          <div>
-              <p className="text-sm font-medium text-gray-800">Oferta para: <span className="font-semibold text-emerald-700">{offer.material}</span></p>
-              <p className="text-xs text-gray-500">De: {offer.user} ({offer.userType}) | Precio: ${offer.price}/kg | Cantidad: {offer.quantity}</p>
-              <p className="text-xs text-gray-500">Recolección: {offer.date} a las {offer.time}</p>
-          </div>
-          <div className="flex flex-col sm:items-end gap-2 w-full sm:w-auto flex-shrink-0">
-             <span className={`text-xs font-medium px-2 py-0.5 rounded-full self-start sm:self-end ${statusStyles[offer.status as keyof typeof statusStyles]}`}>{offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}</span>
-             <div className="flex gap-2 mt-1">
-                  <button className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Aceptar</button>
-                  <button className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Rechazar</button>
-                  <button className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Contraoferta</button>
-                   <button className="text-xs bg-gray-500 text-white px-2 py-1 rounded hover:bg-gray-600"><MessageSquare size={12}/></button>
-             </div>
-          </div>
-      </div>
-  )
-}
+const StatCard = ({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: React.ElementType; color: string }) => (
+  <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+      <Icon className="w-6 h-6" />
+    </div>
+    <div>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+    </div>
+  </div>
+);
 
-const SellerDashboard = () => {
+const categoryEmoji: Record<string, string> = {
+  PET: '♳', Cartón: '📦', Metal: '🔩', Vidrio: '🍶',
+  Electrónicos: '💻', Textiles: '👕', Plástico: '♴', Orgánico: '🌿',
+};
+
+export default function SellerDashboard() {
   const { userName, userProfile } = useAuth();
-  // Estado para almacenar las publicaciones del usuario
-  const [userProducts, setUserProducts] = useState<UserProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<UserProduct[]>([]);
+  const [offers, setOffers] = useState<OfferRow[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingOffers, setLoadingOffers] = useState(true);
 
-  // useEffect para cargar productos desde Supabase
   useEffect(() => {
-    const loadUserProducts = async () => {
-      if (!userProfile) {
-        setLoading(false);
-        return;
-      }
+    if (!userProfile?.id) return;
 
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('user_id', userProfile.id)
-          .order('created_at', { ascending: false });
+    const fetchProducts = async () => {
+      setLoadingProducts(true);
+      const { data } = await supabase
+        .from('products')
+        .select('id,title,category,price,type,municipality,status,image_url,created_at')
+        .eq('user_id', userProfile.id)
+        .order('created_at', { ascending: false });
+      setProducts((data || []) as any);
+      setLoadingProducts(false);
 
-        if (error) throw error;
-
-        const products: UserProduct[] = (data || []).map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          description: p.description,
-          price: Number(p.price),
-          currency: p.currency || 'MXN',
-          location: p.location || '',
-          municipality: p.municipality || 'Monterrey',
-          address: p.address || '',
-          category: p.category,
-          tags: p.tags || [],
-          imageUrl: p.image_url || `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(p.title)}`,
-          latitude: p.latitude || 25.6751,
-          longitude: p.longitude || -100.3185,
-          verified: p.verified,
-          type: p.type,
-          status: (p.status as any) || 'activo',
-        }));
-
-        setUserProducts(products);
-      } catch (error) {
-        console.error("Error al cargar productos:", error);
-      } finally {
-        setLoading(false);
+      // Cargar ofertas para mis publicaciones
+      if (data && data.length > 0) {
+        const productIds = (data as any[]).map(p => p.id);
+        setLoadingOffers(true);
+        const { data: offersData } = await supabase
+          .from('offers')
+          .select('id,price,quantity,status,created_at,product:product_id(title),buyer:buyer_id(full_name,email)')
+          .in('product_id', productIds)
+          .order('created_at', { ascending: false })
+          .limit(15);
+        setOffers((offersData || []) as any);
+        setLoadingOffers(false);
+      } else {
+        setLoadingOffers(false);
       }
     };
 
-    loadUserProducts();
-  }, [userProfile]);
+    fetchProducts();
+  }, [userProfile?.id]);
 
-  const receivedOffers = [
-      { id: 1, material: 'Botellas PET Cristal', user: 'Recicladora Monterrey', userType: 'Comprador', price: 9.00, quantity: '45kg', date: '2024-09-15', time: '10:00', status: 'pendiente' },
-      { id: 2, material: 'Cartón Corrugado OCC', user: 'Recolector Independiente #3', userType: 'Recolector', price: 2.50, quantity: '100kg', date: '2024-09-14', time: '14:30', status: 'aceptada' },
-      { id: 3, material: 'Botellas PET Cristal', user: 'Manualidades Creativas', userType: 'Comprador', price: 8.50, quantity: '10kg', date: '2024-09-13', time: 'Tarde', status: 'rechazada' },
-  ];
-  
-  const userZones = [
-      { id: 'z1', name: 'Casa Principal', address: 'Av. Siempre Viva 123, Monterrey', type: 'Hogar', materials: ['PET', 'Cartón'] },
-      { id: 'z2', name: 'Oficina Centro', address: 'Calle Morelos 500, Monterrey', type: 'Negocio', materials: ['Papel', 'Electrónicos'] },
-  ];
-
-  const nearbyRequests = [
-      { id: 'req1', material: 'Aluminio (Latas)', quantity: '~20kg', price: 'Pago justo', location: 'San Nicolás', user: 'Comercio Local' },
-      { id: 'req2', material: 'HDPE (Envases)', quantity: '>50kg', price: 'A tratar', location: 'Monterrey Sur', user: 'Taller Mecánico' },
-  ];
-
-   const materialHistory = [
-    { id: 'h1', material: 'Archivo Muerto', date: '10/08/2024', status: 'Vendido', quantity: '55kg', buyer: 'Papelera Regional' },
-    { id: 'h2', material: 'Chatarra Electrónica', date: '05/08/2024', status: 'Donado', quantity: 'N/A', buyer: 'Centro Comunitario' },
-    { id: 'h3', material: 'Vidrio (Frascos)', date: '01/08/2024', status: 'Expirado', quantity: 'N/A', buyer: '-' },
-  ];
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Loader className="animate-spin h-8 w-8 text-emerald-600" />
-      </div>
-    );
-  }
+  const activeProducts  = products.filter(p => p.status === 'activo').length;
+  const pendingOffers   = offers.filter(o => o.status === 'pendiente').length;
+  const acceptedOffers  = offers.filter(o => o.status === 'aceptada').length;
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-           <h2 className="text-2xl font-semibold">Panel de Vendedor / Generador</h2>
-           <p className="text-gray-600">¡Bienvenido, {userName || 'Vendedor'}!</p>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+      {/* Hero banner */}
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-xs font-semibold bg-white/20 px-3 py-1 rounded-full">♻️ Vendedor / Generador</span>
+            <h1 className="text-2xl font-bold mt-2">¡Hola, {userName || 'Vendedor'}!</h1>
+            <p className="text-emerald-100 text-sm mt-1">Gestiona tus publicaciones y las ofertas recibidas.</p>
+          </div>
+          <Link to="/publicar"
+            className="inline-flex items-center gap-1.5 bg-white text-emerald-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-50 transition-colors self-start sm:self-auto">
+            <PlusCircle className="w-4 h-4" /> Publicar material
+          </Link>
         </div>
-         <Link 
-          to="/publicar" 
-          className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2"
-        >
-          <PlusCircle size={16}/> Publicar Material
-        </Link>
       </div>
 
-      <div className="space-y-8">
-          {/* 1. Mis publicaciones activas */} 
-          <section>
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><Package size={20}/> Mis Publicaciones</h3>
-            <div className="space-y-4">
-              {userProducts.length > 0 ? (
-                 userProducts.map(p => <PublicationCard key={p.id} product={p} status={p.status} />)
-              ) : (
-                 <p className="text-gray-500 italic p-4 bg-gray-50 rounded text-center">No tienes publicaciones activas.</p>
-              )}
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatCard label="Publicaciones activas" value={activeProducts}  icon={Package}      color="bg-emerald-100 text-emerald-600" />
+        <StatCard label="Ofertas pendientes"     value={pendingOffers}  icon={Clock}        color="bg-yellow-100 text-yellow-600" />
+        <StatCard label="Ofertas aceptadas"      value={acceptedOffers} icon={CheckCircle}  color="bg-blue-100 text-blue-600" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Mis publicaciones */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Package className="w-4 h-4 text-emerald-500" /> Mis publicaciones
+            </h2>
+            <Link to="/publicar" className="text-xs text-emerald-600 hover:underline flex items-center gap-1">
+              Nueva <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          {loadingProducts ? (
+            <div className="p-6 text-center"><Loader className="w-5 h-5 animate-spin mx-auto text-gray-400" /></div>
+          ) : products.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">
+              <Package className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+              <p className="text-sm font-medium text-gray-500">Sin publicaciones aún</p>
+              <Link to="/publicar" className="mt-2 inline-flex items-center gap-1 text-emerald-600 text-sm hover:underline">
+                <PlusCircle className="w-4 h-4" /> Publicar mi primer material
+              </Link>
             </div>
-          </section>
-          
-          {/* 2. Ofertas recibidas */} 
-          <section>
-             <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><DollarSign size={20}/> Ofertas Recibidas</h3>
-             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-               {receivedOffers.length > 0 ? (
-                  receivedOffers.map(offer => <OfferRow key={offer.id} offer={offer} />)
-               ) : (
-                  <p className="text-gray-500 italic text-center py-4">No has recibido ofertas.</p>
-               )}
-             </div>
-          </section>
-          
-          {/* 3. Zonas donde genero residuos */} 
-          <section>
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><MapPin size={20}/> Mis Zonas de Generación</h3>
-               <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-3">
-                 {userZones.map(zone => (
-                   <div key={zone.id} className="p-3 border-b border-gray-100 last:border-b-0">
-                     <p className="font-medium text-gray-800">{zone.name} <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded ml-2">{zone.type}</span></p>
-                     <p className="text-sm text-gray-600">{zone.address}</p>
-                     <p className="text-xs text-gray-500 mt-1">Materiales: {zone.materials.join(', ')}</p>
-                     {/* Botones Editar/Eliminar Placeholder */}
-                     <div className="flex gap-2 mt-2">
-                        <button className="text-xs text-blue-600 hover:underline">Editar</button>
-                        <button className="text-xs text-red-600 hover:underline">Eliminar</button>
-                     </div>
-                   </div>
-                 ))}
-                 {userZones.length === 0 && <p className="text-gray-500 italic mb-4">No tienes zonas registradas.</p>}
-                 <button className="bg-blue-500 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-600 flex items-center gap-1 mt-3">
-                   <PlusCircle size={14}/> Añadir Zona
-                 </button>
-               </div>
-          </section>
-          
-           {/* 4. Solicitudes abiertas cercanas */} 
-          <section>
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><AlertTriangle size={20}/> Solicitudes Abiertas Cercanas</h3>
-               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg space-y-3">
-                   {nearbyRequests.map(req => (
-                     <div key={req.id} className="bg-white p-3 rounded border border-gray-200 flex justify-between items-start">
-                       <div>
-                         <p className="text-sm font-medium">Se busca: <span className="text-emerald-700">{req.material} ({req.quantity})</span></p>
-                         <p className="text-xs text-gray-500">Comprador: {req.user} | Ubicación: {req.location} | Precio: {req.price}</p>
-                       </div>
-                       <button className="text-xs bg-emerald-500 text-white px-2 py-1 rounded mt-1 hover:bg-emerald-600 flex-shrink-0">Ofrecer</button>
-                     </div>
-                   ))}
-                   {nearbyRequests.length === 0 && <p className="text-yellow-800 text-sm italic">No hay solicitudes cercanas que coincidan con tus materiales ahora.</p>}
-               </div>
-          </section>
-          
-          {/* 5. Historial de materiales */} 
-          <section>
-               <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><Clock size={20}/> Historial de Materiales</h3>
-               <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                   {/* Placeholder de tabla */} 
-                   <div className="overflow-x-auto">
-                       <table className="min-w-full text-sm">
-                           <thead className="bg-gray-50">
-                               <tr>
-                                   <th className="px-3 py-2 text-left font-medium text-gray-600">Material</th>
-                                   <th className="px-3 py-2 text-left font-medium text-gray-600">Fecha</th>
-                                   <th className="px-3 py-2 text-left font-medium text-gray-600">Estado</th>
-                                   <th className="px-3 py-2 text-left font-medium text-gray-600">Cantidad</th>
-                                   <th className="px-3 py-2 text-left font-medium text-gray-600">Comprador/Recolector</th>
-                               </tr>
-                           </thead>
-                           <tbody className="divide-y divide-gray-100">
-                               {materialHistory.map(item => (
-                                   <tr key={item.id}>
-                                       <td className="px-3 py-2 text-gray-700">{item.material}</td>
-                                       <td className="px-3 py-2 text-gray-500">{item.date}</td>
-                                       <td className="px-3 py-2"><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${item.status === 'Vendido' ? 'bg-blue-100 text-blue-700' : item.status === 'Donado' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{item.status}</span></td>
-                                       <td className="px-3 py-2 text-gray-500">{item.quantity}</td>
-                                       <td className="px-3 py-2 text-gray-500">{item.buyer}</td>
-                                   </tr>
-                               ))}
-                           </tbody>
-                       </table>
-                   </div>
-                   <div className="mt-4 h-32 bg-gray-100 flex items-center justify-center text-gray-400 rounded text-xs">[ Gráfico de Volumen Mensual (Próximamente) ]</div>
-               </div>
-          </section>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {products.slice(0, 6).map(p => (
+                <div key={p.id} className="flex items-center gap-3 px-5 py-3 group">
+                  <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
+                    {p.image_url
+                      ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center text-2xl">{categoryEmoji[p.category] || '♻️'}</div>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{p.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-400 flex items-center gap-0.5"><MapPin className="w-3 h-3" />{p.municipality}</span>
+                      <span className="text-xs text-emerald-600 font-medium">
+                        {p.type === 'donacion' ? 'Donación' : `$${p.price}`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {statusBadge(p.status)}
+                    <Link to={`/publicar/${p.id}`} className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-gray-100 transition-colors">
+                      <Edit className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Ofertas recibidas */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-emerald-500" /> Ofertas recibidas
+            </h2>
+            <Link to="/mensajes" className="text-xs text-emerald-600 hover:underline flex items-center gap-1">
+              Ver mensajes <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          {loadingOffers ? (
+            <div className="p-6 text-center"><Loader className="w-5 h-5 animate-spin mx-auto text-gray-400" /></div>
+          ) : offers.length === 0 ? (
+            <div className="p-6 text-center text-gray-400 text-sm">
+              Aún no tienes ofertas. Las ofertas a tus publicaciones aparecerán aquí.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {offers.slice(0, 8).map(o => (
+                <div key={o.id} className="px-5 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">
+                        {(o.product as any)?.title || 'Material'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        De: {(o.buyer as any)?.full_name || (o.buyer as any)?.email || 'Usuario'} ·{' '}
+                        <span className="text-emerald-600 font-medium">${Number(o.price).toFixed(2)}</span>
+                        {o.quantity && ` · ${o.quantity}`}
+                      </p>
+                    </div>
+                    {statusBadge(o.status)}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {new Date(o.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* Acciones rápidas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { to: '/publicar',  icon: PlusCircle,    label: 'Publicar material',  color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          { to: '/explorar',  icon: MapPin,         label: 'Explorar el mapa',   color: 'bg-blue-50 text-blue-700 border-blue-200' },
+          { to: '/mensajes',  icon: MessageSquare,  label: 'Mis mensajes',       color: 'bg-purple-50 text-purple-700 border-purple-200' },
+          { to: '/favoritos', icon: TrendingUp,     label: 'Mis favoritos',      color: 'bg-amber-50 text-amber-700 border-amber-200' },
+        ].map(a => (
+          <Link key={a.to} to={a.to}
+            className={`flex flex-col items-center gap-2 p-4 rounded-xl border text-center hover:shadow-sm transition-shadow ${a.color}`}>
+            <a.icon className="w-5 h-5" />
+            <span className="text-xs font-medium">{a.label}</span>
+          </Link>
+        ))}
       </div>
     </div>
   );
-};
-
-export default SellerDashboard; 
+}
