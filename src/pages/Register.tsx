@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, User, Mail, Phone, MapPin, Lock, ChevronLeft, CheckCircle2, Circle } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Phone, MapPin, Lock, ChevronLeft, CheckCircle2, Circle, MailCheck } from 'lucide-react';
 import RoleSelection from '../components/auth/RoleSelection';
 import { UserRole } from '../types/user';
 import { useAuth } from '../context/AuthContext';
@@ -265,6 +265,7 @@ function Register() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [additionalData, setAdditionalData] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
+  const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -308,7 +309,11 @@ function Register() {
     });
 
     if (signUpError) {
-      setError(signUpError.message || 'Error al registrar. Intenta de nuevo.');
+      if ((signUpError as any).code === 'EMAIL_CONFIRMATION_REQUIRED') {
+        setEmailConfirmationPending(true);
+      } else {
+        setError(signUpError.message || 'Error al registrar. Intenta de nuevo.');
+      }
       setLoading(false);
     } else {
       navigate('/dashboard');
@@ -317,6 +322,33 @@ function Register() {
 
   if (!selectedRole) {
     return <RoleSelection onSelectRole={handleRoleSelect} />;
+  }
+
+  if (emailConfirmationPending) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center">
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <MailCheck size={32} className="text-emerald-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Cuenta creada!</h2>
+          <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+            Enviamos un correo de confirmación a <span className="font-semibold text-gray-800">{email}</span>.
+            Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el enlace para activar tu cuenta.
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-left text-xs text-amber-800 mb-6">
+            <p className="font-semibold mb-1">¿Prefieres acceso inmediato sin confirmar correo?</p>
+            <p>El administrador debe ir a <strong>Supabase → Authentication → Providers → Email</strong> y desactivar <strong>"Confirm email"</strong>.</p>
+          </div>
+          <Link
+            to="/login"
+            className="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm transition-colors"
+          >
+            Ir a iniciar sesión
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const roleInfo = roleLabels[selectedRole];

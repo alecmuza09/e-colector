@@ -275,15 +275,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         email,
         password,
       });
+
       if (signInError) {
-        // Si el proyecto todavía exige confirmación de email, aquí fallará.
-        return {
-          error: {
-            message:
-              signInError.message ||
-              'No se pudo iniciar sesión automáticamente tras el registro. Revisa la configuración de confirmación de email en Supabase Auth.',
-          },
-        };
+        const msg = signInError.message?.toLowerCase() || '';
+        if (msg.includes('email not confirmed') || msg.includes('email_not_confirmed')) {
+          // El usuario fue creado pero Supabase requiere confirmación de correo.
+          // Solución: en el panel de Supabase ve a Authentication → Providers → Email
+          // y desactiva "Confirm email".
+          return {
+            error: {
+              message:
+                'Tu cuenta fue creada. Para activarla sin confirmar correo, ' +
+                'el administrador debe desactivar "Confirm email" en Supabase Auth. ' +
+                'Mientras tanto, revisa tu bandeja de entrada y confirma tu correo para ingresar.',
+              code: 'EMAIL_CONFIRMATION_REQUIRED',
+            },
+          };
+        }
+        return { error: signInError };
       }
 
       if (signInData.user) {
