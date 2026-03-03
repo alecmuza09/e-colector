@@ -152,7 +152,7 @@ const Sidebar = () => {
       {/* Botón hamburguesa móvil */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-emerald-600 text-white rounded-lg shadow-lg"
+        className="md:hidden fixed top-4 left-4 z-[1002] p-2 bg-emerald-600 text-white rounded-lg shadow-lg"
         aria-label="Abrir menú"
       >
         <Menu className="w-5 h-5" />
@@ -160,13 +160,13 @@ const Sidebar = () => {
 
       {/* Overlay móvil */}
       {isMobileOpen && (
-        <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={closeMobile} aria-hidden="true" />
+        <div className="md:hidden fixed inset-0 bg-black/50 z-[1000]" onClick={closeMobile} aria-hidden="true" />
       )}
 
       {/* Sidebar */}
       <aside
         className={`fixed md:sticky md:top-0 h-screen bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-900
-          text-white transition-all duration-300 z-50 flex flex-col
+          text-white transition-all duration-300 z-[1001] flex flex-col
           ${isMobileOpen ? 'left-0' : '-left-full md:left-0'}
           ${isCollapsed ? 'w-20' : 'w-64'}`}
       >
