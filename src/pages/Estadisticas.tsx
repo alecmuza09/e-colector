@@ -13,6 +13,42 @@ type ProductMini = {
   status: string;
 };
 
+type RewardRule = {
+  action_key: string;
+  label: string;
+  description: string | null;
+  points_per_action: number;
+  max_points: number | null;
+  active: boolean;
+};
+
+type RewardLevel = {
+  nombre: string;
+  emoji: string;
+  min_points: number;
+};
+
+const DEFAULT_RULES: RewardRule[] = [
+  { action_key: 'publicacion', label: 'Publicar materiales',     description: 'Por cada publicación activa',           points_per_action: 15, max_points: null, active: true },
+  { action_key: 'oferta',      label: 'Enviar / recibir ofertas', description: 'Por cada oferta enviada o recibida',    points_per_action: 5,  max_points: null, active: true },
+  { action_key: 'mensaje',     label: 'Mensajes',                 description: 'Por mensaje enviado o recibido',        points_per_action: 2,  max_points: 50,   active: true },
+  { action_key: 'favorito',    label: 'Favoritos guardados',      description: 'Por favorito guardado',                 points_per_action: 1,  max_points: 20,   active: true },
+];
+
+const DEFAULT_LEVELS: RewardLevel[] = [
+  { nombre: 'Bronce',  emoji: '🥉', min_points: 0   },
+  { nombre: 'Plata',   emoji: '🥈', min_points: 50  },
+  { nombre: 'Oro',     emoji: '🥇', min_points: 150 },
+  { nombre: 'Platino', emoji: '💎', min_points: 350 },
+];
+
+const ACTION_ICONS: Record<string, React.ElementType> = {
+  publicacion: Package,
+  oferta:      Users,
+  mensaje:     MessageCircle,
+  favorito:    Heart,
+};
+
 export default function Estadisticas() {
   const { isAuthenticated, userProfile, userRole } = useAuth();
   const [timeRange, setTimeRange] = useState<TimeRange>('mes');
@@ -23,6 +59,9 @@ export default function Estadisticas() {
   const [messagesCount, setMessagesCount] = useState(0);
   const [favoritesCount, setFavoritesCount] = useState(0);
 
+  const [rules, setRules] = useState<RewardRule[]>(DEFAULT_RULES);
+  const [levels, setLevels] = useState<RewardLevel[]>(DEFAULT_LEVELS);
+
   const startDate = useMemo(() => {
     const now = new Date();
     const d = new Date(now);
@@ -32,12 +71,28 @@ export default function Estadisticas() {
     return d.toISOString();
   }, [timeRange]);
 
+  // Cargar reglas y niveles desde Supabase (con fallback a defaults)
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const [{ data: rulesData }, { data: levelsData }] = await Promise.all([
+          supabase.from('reward_rules').select('*').eq('active', true),
+          supabase.from('reward_levels').select('*').order('min_points', { ascending: true }),
+        ]);
+        if (rulesData && rulesData.length > 0) setRules(rulesData as RewardRule[]);
+        if (levelsData && levelsData.length > 0) setLevels(levelsData as RewardLevel[]);
+      } catch {
+        // tabla aún no existe, usar defaults
+      }
+    };
+    loadConfig();
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       if (!userProfile) return;
       setLoading(true);
       try {
-        // Productos: para vendedor/collector/admin se muestran los suyos (admin ve global por RLS policy)
         if (userRole === 'seller' || userRole === 'collector' || userRole === 'admin') {
           let q = supabase.from('products').select('id,category,created_at,status').gte('created_at', startDate);
           if (userRole !== 'admin') q = q.eq('user_id', userProfile.id);
@@ -48,28 +103,22 @@ export default function Estadisticas() {
           setProducts([]);
         }
 
-        // Favoritos (siempre del usuario)
-        const { count: favCount, error: favErr } = await supabase
+        const { count: favCount } = await supabase
           .from('favorites')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', userProfile.id);
-        if (favErr) throw favErr;
         setFavoritesCount(favCount || 0);
 
-        // Mensajes (siempre del usuario)
-        const { count: msgCount, error: msgErr } = await supabase
+        const { count: msgCount } = await supabase
           .from('messages')
           .select('id', { count: 'exact', head: true })
           .or(`sender_id.eq.${userProfile.id},receiver_id.eq.${userProfile.id}`)
           .gte('created_at', startDate);
-        if (msgErr) throw msgErr;
         setMessagesCount(msgCount || 0);
 
-        // Ofertas: buyer = propias, seller/admin = las visibles por RLS (seller ve ofertas de sus productos)
         let offersQ = supabase.from('offers').select('id', { count: 'exact', head: true }).gte('created_at', startDate);
         if (userRole === 'buyer') offersQ = offersQ.eq('buyer_id', userProfile.id);
-        const { count: offCount, error: offErr } = await offersQ;
-        if (offErr) throw offErr;
+        const { count: offCount } = await offersQ;
         setOffersCount(offCount || 0);
       } catch (e) {
         console.error('Error loading stats:', e);
@@ -77,7 +126,6 @@ export default function Estadisticas() {
         setLoading(false);
       }
     };
-
     load();
   }, [userProfile?.id, userRole, startDate, userProfile]);
 
@@ -92,41 +140,33 @@ export default function Estadisticas() {
       .sort((a, b) => b.publications - a.publications);
   }, [products]);
 
-  // Puntos y recompensas: calculados por actividad
+  // Cálculo dinámico basado en reglas de Supabase
   const { puntos, nivel, nivelProgreso } = useMemo(() => {
-    const ptsPublicaciones = publicationsCount * 15;
-    const ptsOfertas = offersCount * 5;
-    const ptsMensajes = Math.min(messagesCount * 2, 50);
-    const ptsFavoritos = Math.min(favoritesCount, 20);
-    const total = ptsPublicaciones + ptsOfertas + ptsMensajes + ptsFavoritos;
+    const actionValues: Record<string, number> = {
+      publicacion: publicationsCount,
+      oferta:      offersCount,
+      mensaje:     messagesCount,
+      favorito:    favoritesCount,
+    };
 
-    const niveles = [
-      { nombre: 'Bronce', min: 0, emoji: '🥉' },
-      { nombre: 'Plata', min: 50, emoji: '🥈' },
-      { nombre: 'Oro', min: 150, emoji: '🥇' },
-      { nombre: 'Platino', min: 350, emoji: '💎' },
-    ];
-    let current = niveles[0];
-    for (const n of niveles) {
-      if (total >= n.min) current = n;
+    let total = 0;
+    for (const rule of rules) {
+      const count = actionValues[rule.action_key] ?? 0;
+      const pts = count * rule.points_per_action;
+      total += rule.max_points != null ? Math.min(pts, rule.max_points) : pts;
     }
-    const next = niveles[niveles.indexOf(current) + 1];
+
+    let current = levels[0] ?? DEFAULT_LEVELS[0];
+    for (const l of levels) {
+      if (total >= l.min_points) current = l;
+    }
+    const next = levels[levels.indexOf(current) + 1];
     const progreso = next
-      ? Math.round(((total - current.min) / (next.min - current.min)) * 100)
+      ? Math.round(((total - current.min_points) / (next.min_points - current.min_points)) * 100)
       : 100;
 
     return { puntos: total, nivel: current, nivelProgreso: Math.min(progreso, 100) };
-  }, [publicationsCount, offersCount, messagesCount, favoritesCount]);
-
-  const recompensas = useMemo(
-    () => [
-      { titulo: 'Publicar materiales', puntos: 15, desc: 'Por cada publicación activa', icon: Package },
-      { titulo: 'Enviar ofertas', puntos: 5, desc: 'Por cada oferta enviada/recibida', icon: Users },
-      { titulo: 'Mensajes', puntos: 2, desc: 'Por mensaje (máx. 50 pts)', icon: MessageCircle },
-      { titulo: 'Favoritos', puntos: 1, desc: 'Por favorito guardado (máx. 20 pts)', icon: Heart },
-    ],
-    []
-  );
+  }, [publicationsCount, offersCount, messagesCount, favoritesCount, rules, levels]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
@@ -134,8 +174,7 @@ export default function Estadisticas() {
       <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-emerald-200 dark:border-emerald-800 px-6 md:px-8 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">📊 Estadísticas</h1>
-          
-          {/* Time Range Selector */}
+
           <div className="flex gap-2">
             {(['mes', 'trimestre', 'año'] as const).map((range) => (
               <button
@@ -225,7 +264,7 @@ export default function Estadisticas() {
               </div>
             </div>
 
-            {/* Publicaciones por categoría (real) */}
+            {/* Publicaciones por categoría */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-emerald-200 dark:border-emerald-700 p-6 shadow-sm">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                 <BarChart3 className="w-6 h-6 text-emerald-600" />
@@ -252,7 +291,7 @@ export default function Estadisticas() {
                           <div
                             className="h-full bg-gradient-to-r from-emerald-400 to-teal-500"
                             style={{ width: `${(cat.publications / max) * 100}%` }}
-                          ></div>
+                          />
                         </div>
                       </div>
                     );
@@ -269,7 +308,7 @@ export default function Estadisticas() {
               </h2>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Tarjeta de puntos y nivel */}
+                {/* Nivel y progreso */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200 dark:border-amber-700">
                     <div className="flex items-center gap-3">
@@ -300,30 +339,53 @@ export default function Estadisticas() {
                       />
                     </div>
                   </div>
+
+                  {/* Niveles disponibles */}
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {levels.map((l) => (
+                      <div
+                        key={l.nombre}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium ${
+                          nivel.nombre === l.nombre
+                            ? 'bg-amber-100 dark:bg-amber-900/40 border-amber-400 dark:border-amber-600 text-amber-800 dark:text-amber-300'
+                            : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400'
+                        }`}
+                      >
+                        <span>{l.emoji}</span>
+                        <span>{l.nombre}</span>
+                        <span className="ml-auto text-xs opacity-70">{l.min_points} pts</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Cómo sumar puntos */}
+                {/* Cómo ganar puntos */}
                 <div className="space-y-3">
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <Gift className="w-4 h-4 text-emerald-600" />
                     Cómo ganar puntos
                   </p>
                   <ul className="space-y-2">
-                    {recompensas.map((r) => {
-                      const Icon = r.icon;
+                    {rules.map((r) => {
+                      const Icon = ACTION_ICONS[r.action_key] ?? Star;
                       return (
                         <li
-                          key={r.titulo}
+                          key={r.action_key}
                           className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-700/50"
                         >
                           <div className="flex items-center gap-2">
                             <Icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                             <div>
-                              <p className="font-medium text-gray-900 dark:text-white text-sm">{r.titulo}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{r.desc}</p>
+                              <p className="font-medium text-gray-900 dark:text-white text-sm">{r.label}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {r.description}
+                                {r.max_points != null && ` (máx. ${r.max_points} pts)`}
+                              </p>
                             </div>
                           </div>
-                          <span className="text-amber-600 dark:text-amber-400 font-bold text-sm">+{r.puntos} pts</span>
+                          <span className="text-amber-600 dark:text-amber-400 font-bold text-sm shrink-0">
+                            +{r.points_per_action} pts
+                          </span>
                         </li>
                       );
                     })}
@@ -331,22 +393,9 @@ export default function Estadisticas() {
                 </div>
               </div>
             </div>
-
-            {/* Nota de datos */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-emerald-200 dark:border-emerald-700 p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                <Calendar className="w-6 h-6 text-emerald-600" />
-                Nota
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
-                Estas estadísticas se calculan en tiempo real desde Supabase. Métricas como “vistas” o “contactos” requieren un sistema de tracking adicional
-                (aún no implementado).
-              </p>
-            </div>
           </>
         )}
       </div>
     </div>
   );
 }
-
