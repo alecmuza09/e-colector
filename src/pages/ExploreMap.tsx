@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Product } from '../data/mockProducts';
 import { getProducts } from '../services/products';
-import { Filter, Search, X, MapPin, DollarSign, CheckCircle, Heart, Loader } from 'lucide-react';
+import { Filter, Search, X, MapPin, DollarSign, CheckCircle, Loader } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 // Coordenadas aproximadas del centro del Área Metropolitana de Monterrey
@@ -64,7 +64,7 @@ function ChangeView({ markers }: { markers: Product[] }) {
 }
 
 // Componente para ProductCard mejorado
-const ProductCard: React.FC<{ product: Product; isFavorite: boolean; onFavorite: () => void }> = ({ product, isFavorite, onFavorite }) => {
+const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   const category = categoryColors[product.category];
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: currency }).format(price);
@@ -79,24 +79,11 @@ const ProductCard: React.FC<{ product: Product; isFavorite: boolean; onFavorite:
           alt={product.title} 
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
         />
-        <div className="absolute top-2 right-2 flex gap-2">
-          {product.verified && (
-            <div className="bg-emerald-500 rounded-full p-1 shadow-md" title="Verificado">
-              <CheckCircle className="w-4 h-4 text-white" />
-            </div>
-          )}
-          <button
-            onClick={onFavorite}
-            className={`rounded-full p-1.5 shadow-md transition-colors ${
-              isFavorite
-                ? 'bg-red-500 text-white'
-                : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-red-500 hover:text-white'
-            }`}
-            title="Agregar a favoritos"
-          >
-            <Heart className="w-4 h-4" fill={isFavorite ? 'currentColor' : 'none'} />
-          </button>
-        </div>
+        {product.verified && (
+          <div className="absolute top-2 right-2 bg-emerald-500 rounded-full p-1 shadow-md" title="Verificado">
+            <CheckCircle className="w-4 h-4 text-white" />
+          </div>
+        )}
         <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-medium">
           {product.type === 'venta' ? '💰 Venta' : '🎁 Donación'}
         </div>
@@ -149,7 +136,6 @@ const ExploreMapLeaflet = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [activeFilters, setActiveFilters] = useState<string[]>(['Todos']);
   const [showFilters, setShowFilters] = useState(false);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [products, setProducts] = useState<Product[]>([]);
@@ -203,15 +189,6 @@ const ExploreMapLeaflet = () => {
     }
   };
 
-  const toggleFavorite = (productId: string) => {
-    const newFavorites = new Set(favorites);
-    if (newFavorites.has(productId)) {
-      newFavorites.delete(productId);
-    } else {
-      newFavorites.add(productId);
-    }
-    setFavorites(newFavorites);
-  };
 
   const toggleSelectProduct = (productId: string) => {
     const newSelected = new Set(selectedProducts);
@@ -452,8 +429,6 @@ const ExploreMapLeaflet = () => {
                   <ProductCard
                     key={product.id}
                     product={product}
-                    isFavorite={favorites.has(product.id)}
-                    onFavorite={() => toggleFavorite(product.id)}
                   />
                 ))}
               </div>
@@ -467,13 +442,6 @@ const ExploreMapLeaflet = () => {
         )}
       </div>
 
-      {/* Botón Favoritos Sticky - Desktop */}
-      {favorites.size > 0 && window.innerWidth >= 1024 && (
-        <button className="fixed bottom-6 right-6 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-4 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 z-40">
-          <Heart className="w-5 h-5" fill="currentColor" />
-          {favorites.size}
-        </button>
-      )}
     </div>
   );
 };

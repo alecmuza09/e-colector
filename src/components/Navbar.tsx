@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Menu, X, User, LogOut, LayoutDashboard, Heart, MapPin, Plus } from 'lucide-react';
+import { Bell, Menu, X, User, LogOut, LayoutDashboard, MapPin, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -56,15 +56,6 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-3">
             {isAuthenticated ? (
               <>
-                {/* Favoritos */}
-                <Link 
-                  to="/favoritos"
-                  className="relative text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                  title="Mis favoritos"
-                >
-                  <Heart className="h-5 w-5" />
-                </Link>
-
                 {/* Notificaciones */}
                 <div className="relative">
                   <button 
@@ -134,9 +125,6 @@ const Navbar = () => {
                     <Link to="/dashboard" className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
                       📊 Mi Panel
                     </Link>
-                    <Link to="/favoritos" className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20">
-                      ❤️ Favoritos
-                    </Link>
                     <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
                     <button 
                       onClick={handleLogout}
@@ -198,9 +186,6 @@ const Navbar = () => {
                 </Link>
                 <Link to="/perfil" className="block px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 font-medium text-sm" onClick={() => setIsMenuOpen(false)}>
                   👤 Mi Perfil
-                </Link>
-                <Link to="/favoritos" className="block px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 font-medium text-sm" onClick={() => setIsMenuOpen(false)}>
-                  ❤️ Favoritos
                 </Link>
                 <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium text-sm">
                   🚪 Cerrar Sesión

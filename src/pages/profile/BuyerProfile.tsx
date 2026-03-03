@@ -105,10 +105,6 @@ const BuyerProfile = () => {
             <div className="text-sm text-gray-600">Ofertas Enviadas</div>
           </div>
           <div className="text-center p-4 bg-blue-50 rounded">
-            <div className="text-2xl font-bold text-blue-600">0</div>
-            <div className="text-sm text-gray-600">Materiales Favoritos</div>
-          </div>
-          <div className="text-center p-4 bg-blue-50 rounded">
             {userProfile?.isVerified ? (
               <>
                 <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />

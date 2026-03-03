@@ -8,7 +8,6 @@ import {
   Plus,
   MessageCircle,
   User,
-  Heart,
   BarChart3,
   Settings,
   LogOut,
@@ -47,7 +46,6 @@ const Sidebar = () => {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [favoritesCount, setFavoritesCount] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
 
   const location = useLocation();
@@ -59,7 +57,6 @@ const Sidebar = () => {
     { label: 'Explorar Mapa', icon: Map, path: '/explorar' },
     { label: 'Publicar', icon: Plus, path: '/publicar' },
     { label: 'Mensajes', icon: MessageCircle, path: '/mensajes', badge: unreadMessages },
-    { label: 'Favoritos', icon: Heart, path: '/favoritos', badge: favoritesCount },
   ];
 
   const secondaryItems = [
@@ -86,27 +83,15 @@ const Sidebar = () => {
     setUnreadMessages(unread);
   };
 
-  // ── Cargar favoritos ─────────────────────────────────────────────────────
-  const fetchFavorites = async () => {
-    if (!userProfile?.id) return;
-    const { count } = await supabase
-      .from('favorites')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userProfile.id);
-    setFavoritesCount(count || 0);
-  };
-
   // ── Carga inicial + Realtime en mensajes ─────────────────────────────────
   useEffect(() => {
     if (!isAuthenticated || !userProfile?.id) {
       setUnreadMessages(0);
-      setFavoritesCount(0);
       setNotifications([]);
       return;
     }
 
     fetchNotifications();
-    fetchFavorites();
 
     const channel = supabase
       .channel(`sidebar-notifs-${userProfile.id}`)

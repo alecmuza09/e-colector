@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Users, Package, Calendar, MessageCircle, Heart, Loader, Award, Star, Gift } from 'lucide-react';
+import { BarChart3, Users, Package, MessageCircle, Loader, Award, Star, Gift } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
@@ -32,7 +32,6 @@ const DEFAULT_RULES: RewardRule[] = [
   { action_key: 'publicacion', label: 'Publicar materiales',     description: 'Por cada publicación activa',           points_per_action: 15, max_points: null, active: true },
   { action_key: 'oferta',      label: 'Enviar / recibir ofertas', description: 'Por cada oferta enviada o recibida',    points_per_action: 5,  max_points: null, active: true },
   { action_key: 'mensaje',     label: 'Mensajes',                 description: 'Por mensaje enviado o recibido',        points_per_action: 2,  max_points: 50,   active: true },
-  { action_key: 'favorito',    label: 'Favoritos guardados',      description: 'Por favorito guardado',                 points_per_action: 1,  max_points: 20,   active: true },
 ];
 
 const DEFAULT_LEVELS: RewardLevel[] = [
@@ -46,7 +45,6 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   publicacion: Package,
   oferta:      Users,
   mensaje:     MessageCircle,
-  favorito:    Heart,
 };
 
 export default function Estadisticas() {
@@ -57,7 +55,6 @@ export default function Estadisticas() {
   const [products, setProducts] = useState<ProductMini[]>([]);
   const [offersCount, setOffersCount] = useState(0);
   const [messagesCount, setMessagesCount] = useState(0);
-  const [favoritesCount, setFavoritesCount] = useState(0);
 
   const [rules, setRules] = useState<RewardRule[]>(DEFAULT_RULES);
   const [levels, setLevels] = useState<RewardLevel[]>(DEFAULT_LEVELS);
@@ -103,12 +100,6 @@ export default function Estadisticas() {
           setProducts([]);
         }
 
-        const { count: favCount } = await supabase
-          .from('favorites')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userProfile.id);
-        setFavoritesCount(favCount || 0);
-
         const { count: msgCount } = await supabase
           .from('messages')
           .select('id', { count: 'exact', head: true })
@@ -146,7 +137,6 @@ export default function Estadisticas() {
       publicacion: publicationsCount,
       oferta:      offersCount,
       mensaje:     messagesCount,
-      favorito:    favoritesCount,
     };
 
     let total = 0;
@@ -166,7 +156,7 @@ export default function Estadisticas() {
       : 100;
 
     return { puntos: total, nivel: current, nivelProgreso: Math.min(progreso, 100) };
-  }, [publicationsCount, offersCount, messagesCount, favoritesCount, rules, levels]);
+  }, [publicationsCount, offersCount, messagesCount, rules, levels]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
@@ -250,18 +240,6 @@ export default function Estadisticas() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-700 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Favoritos</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{favoritesCount}</p>
-                    <p className="text-sm text-gray-500 mt-2">Total</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900/30">
-                    <Heart className="w-6 h-6 text-red-600 dark:text-red-400" />
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Publicaciones por categoría */}

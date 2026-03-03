@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   Boxes,
   MessageSquare,
-  Heart,
   FileText,
   RefreshCw,
   UserPlus,
@@ -21,7 +20,6 @@ import {
   Award,
   Activity,
   ArrowUpRight,
-  Filter,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -52,7 +50,6 @@ type PlatformStats = {
   offersTotal: number;
   requestsTotal: number;
   messagesTotal: number;
-  favoritesTotal: number;
 };
 
 type ProductRow = {
@@ -210,7 +207,7 @@ export default function AdminConsole() {
   const [stats, setStats] = useState<PlatformStats>({
     usersTotal: 0, buyers: 0, sellers: 0, collectors: 0, admins: 0,
     productsActive: 0, productsTotal: 0, offersTotal: 0,
-    requestsTotal: 0, messagesTotal: 0, favoritesTotal: 0,
+    requestsTotal: 0, messagesTotal: 0,
   });
   const [recentProducts, setRecentProducts] = useState<ProductRow[]>([]);
   const [growthLoading, setGrowthLoading] = useState(false);
@@ -277,9 +274,8 @@ export default function AdminConsole() {
       const offersTotal    = await count('offers');
       const requestsTotal  = await count('requests');
       const messagesTotal  = await count('messages');
-      const favoritesTotal = await count('favorites');
 
-      setStats({ usersTotal, buyers, sellers, collectors, admins, productsActive, productsTotal, offersTotal, requestsTotal, messagesTotal, favoritesTotal });
+      setStats({ usersTotal, buyers, sellers, collectors, admins, productsActive, productsTotal, offersTotal, requestsTotal, messagesTotal });
 
       const { data: recent } = await supabase.from('products').select('id,title,status,type,category,created_at').order('created_at', { ascending: false }).limit(10);
       setRecentProducts((recent || []) as any);
@@ -448,7 +444,6 @@ export default function AdminConsole() {
               <StatCard icon={ArrowUpRight} label="Ofertas"       value={stats.offersTotal}   sub="Totales"                                   color="bg-amber-500"   />
               <StatCard icon={Activity}     label="Solicitudes"   value={stats.requestsTotal} sub="Totales"                                   color="bg-blue-500"    />
               <StatCard icon={MessageSquare} label="Mensajes"     value={stats.messagesTotal} sub="Totales"                                   color="bg-teal-500"    />
-              <StatCard icon={Heart}        label="Favoritos"     value={stats.favoritesTotal} sub="Totales"                                  color="bg-pink-500"    />
             </div>
 
             {/* Distribución de usuarios */}
@@ -760,7 +755,6 @@ export default function AdminConsole() {
                   { label: 'Ofertas',                 value: stats.offersTotal,    color: 'text-amber-600'  },
                   { label: 'Solicitudes',             value: stats.requestsTotal,  color: 'text-blue-600'   },
                   { label: 'Mensajes',                value: stats.messagesTotal,  color: 'text-teal-600'   },
-                  { label: 'Favoritos',               value: stats.favoritesTotal, color: 'text-pink-600'   },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
                     <span className="text-sm text-gray-600">{row.label}</span>

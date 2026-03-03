@@ -35,7 +35,6 @@ const SolicitudDetail = lazy(() => import('./pages/details/SolicitudDetail'));
 const OfertaDetail = lazy(() => import('./pages/details/OfertaDetail'));
 const RecolectorProfile = lazy(() => import('./pages/profile/RecolectorProfile'));
 const Mensajes = lazy(() => import('./pages/Mensajes'));
-const Favoritos = lazy(() => import('./pages/Favoritos'));
 const Estadisticas = lazy(() => import('./pages/Estadisticas'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
 
@@ -71,7 +70,6 @@ const allRoutes = (
     <Route path="/publicar" element={<PublishListing />} />
     <Route path="/publicar/:id" element={<PublishListing />} />
     <Route path="/mensajes" element={<Mensajes />} />
-    <Route path="/favoritos" element={<Favoritos />} />
     <Route path="/estadisticas" element={<Estadisticas />} />
     <Route path="/configuracion" element={<Configuracion />} />
     <Route path="/solicitud/:id" element={<SolicitudDetail />} />
