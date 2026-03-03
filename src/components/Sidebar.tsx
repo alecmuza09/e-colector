@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import {
   Home,
+  LayoutDashboard,
   Map,
   Plus,
   MessageCircle,
@@ -54,6 +55,7 @@ const Sidebar = () => {
 
   const navItems = [
     { label: 'Inicio', icon: Home, path: '/' },
+    { label: 'Mi Panel', icon: LayoutDashboard, path: '/dashboard' },
     { label: 'Explorar Mapa', icon: Map, path: '/explorar' },
     { label: 'Publicar', icon: Plus, path: '/publicar' },
     { label: 'Mensajes', icon: MessageCircle, path: '/mensajes', badge: unreadMessages },
