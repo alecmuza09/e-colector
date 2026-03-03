@@ -118,7 +118,7 @@ function AppContent() {
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900">
       {showSidebar && <Sidebar />}
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className={`flex-1 flex flex-col min-w-0 ${showSidebar ? 'pt-14 md:pt-0' : ''}`}>
         {showNavbar && <Navbar />}
         <div className="flex-grow">
           <Suspense fallback={<LoadingFallback />}>

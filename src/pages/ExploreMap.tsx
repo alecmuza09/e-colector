@@ -201,9 +201,9 @@ const ExploreMapLeaflet = () => {
   };
 
   return (
-    <div className="relative h-[calc(100vh-64px)] w-full bg-gray-100 dark:bg-gray-900 flex flex-col lg:flex-row">
+    <div className="relative h-[calc(100vh-64px)] w-full bg-gray-100 dark:bg-gray-900 flex flex-col lg:flex-row overflow-hidden">
       {/* Panel de Búsqueda y Filtros - MEJORADO */}
-      <div className="sticky top-0 lg:relative w-full lg:w-96 bg-white dark:bg-gray-800 shadow-lg lg:shadow-lg lg:h-full lg:overflow-y-auto z-50 lg:z-40 border-b lg:border-r border-gray-200 dark:border-gray-700">
+      <div className="relative w-full lg:w-96 bg-white dark:bg-gray-800 shadow-lg lg:shadow-lg max-h-[45vh] overflow-y-auto lg:max-h-full lg:h-full z-10 lg:z-40 border-b lg:border-r border-gray-200 dark:border-gray-700">
         <div className="p-4 space-y-4">
           {/* Header del panel */}
           <div className="flex items-center justify-between lg:hidden">

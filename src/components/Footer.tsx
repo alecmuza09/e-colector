@@ -13,13 +13,13 @@ const Footer = () => {
               <h3 className="text-2xl md:text-3xl font-bold mb-2">Mantente Informado</h3>
               <p className="text-emerald-100">Recibe noticias sobre nuevos materiales y oportunidades directamente en tu bandeja</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="email"
                 placeholder="tu@email.com"
                 className="flex-1 px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400"
               />
-              <button className="px-6 py-3 bg-white text-emerald-600 font-bold rounded-lg hover:bg-emerald-50 transition-colors">
+              <button className="sm:flex-shrink-0 px-6 py-3 bg-white text-emerald-600 font-bold rounded-lg hover:bg-emerald-50 transition-colors whitespace-nowrap">
                 Suscribirse
               </button>
             </div>
