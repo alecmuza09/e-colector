@@ -7,7 +7,7 @@ export default function TopBar() {
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
-          <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain" />
+          <img src="/assets/images/logo.svg" alt="e-colector" className="h-10 object-contain" />
         </Link>
 
         {/* Tagline - Hidden on small screens */}

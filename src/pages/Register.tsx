@@ -359,7 +359,7 @@ function Register() {
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <img src="/assets/images/logo-full.png" alt="e-colector" className="h-8 object-contain" />
+          <img src="/assets/images/logo.svg" alt="e-colector" className="h-8 object-contain" />
         </Link>
         <button
           onClick={() => setSelectedRole(null)}

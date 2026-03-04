@@ -48,7 +48,7 @@ const RoleSelection: React.FC<RoleSelectionProps> = ({ onSelectRole }) => {
       {/* Header */}
       <div className="py-8 text-center">
         <Link to="/" className="inline-flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain" />
+          <img src="/assets/images/logo.svg" alt="e-colector" className="h-10 object-contain" />
         </Link>
       </div>
 
