@@ -20,7 +20,8 @@ export interface ProductFromDB {
   image_url: string | null;
   image_urls?: string[] | null;
   verified: boolean;
-  type: 'venta' | 'donacion';
+  type: 'venta' | 'donacion' | 'stock_recolector';
+  notes?: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -109,7 +110,8 @@ export const createProduct = async (productData: {
   tags?: string[];
   image_url?: string;
   image_urls?: string[];
-  type?: 'venta' | 'donacion';
+  type?: 'venta' | 'donacion' | 'stock_recolector';
+  notes?: string;
 }): Promise<Product | null> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -167,7 +169,8 @@ export const updateProduct = async (
     tags?: string[];
     image_url?: string;
     image_urls?: string[];
-    type?: 'venta' | 'donacion';
+    type?: 'venta' | 'donacion' | 'stock_recolector';
+    notes?: string;
     status?: 'activo' | 'vendido' | 'expirado' | 'cancelado';
   }
 ): Promise<Product | null> => {
@@ -234,6 +237,42 @@ export const getProductsByMunicipality = async (municipality: string): Promise<P
     return (data || []).map(mapProductFromDB);
   } catch (error) {
     console.error('Error fetching products by municipality:', error);
+    return [];
+  }
+};
+
+// Obtener stocks de recolectores (tipo stock_recolector)
+export const getCollectorStocks = async (): Promise<Product[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('type', 'stock_recolector')
+      .eq('status', 'activo')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map(mapProductFromDB);
+  } catch (error) {
+    console.error('Error fetching collector stocks:', error);
+    return [];
+  }
+};
+
+// Obtener stocks de un recolector específico
+export const getMyCollectorStocks = async (userId: string): Promise<Product[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('type', 'stock_recolector')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map(mapProductFromDB);
+  } catch (error) {
+    console.error('Error fetching my collector stocks:', error);
     return [];
   }
 };

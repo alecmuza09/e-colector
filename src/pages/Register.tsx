@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, User, Mail, Phone, MapPin, Lock, ChevronLeft, CheckCircle2, Circle, MailCheck } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Phone, MapPin, Lock, ChevronLeft, CheckCircle2, Circle, MailCheck, Truck } from 'lucide-react';
 import RoleSelection from '../components/auth/RoleSelection';
 import { UserRole } from '../types/user';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 // ─── Helper components ───────────────────────────────────────────────────────
 
 const roleLabels: Record<UserRole, { label: string; emoji: string; color: string }> = {
-  [UserRole.BUYER]:     { label: 'Comprador',            emoji: '🏢', color: 'bg-blue-100 text-blue-700' },
-  [UserRole.SELLER]:    { label: 'Vendedor / Generador', emoji: '♻️', color: 'bg-emerald-100 text-emerald-700' },
-  [UserRole.COLLECTOR]: { label: 'Recolector / Empresa', emoji: '🚚', color: 'bg-teal-100 text-teal-700' },
+  [UserRole.BUYER]:     { label: 'Comprador / Reciclador', emoji: '🏭', color: 'bg-blue-100 text-blue-700' },
+  [UserRole.SELLER]:    { label: 'Generador / Vendedor',   emoji: '🏠', color: 'bg-emerald-100 text-emerald-700' },
+  [UserRole.COLLECTOR]: { label: 'Recolector / Empresa',   emoji: '🚚', color: 'bg-teal-100 text-teal-700' },
 };
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -164,6 +165,40 @@ const CompradorFields: React.FC<FieldProps> = ({ formData, handleChange, handleC
         Recibir alertas cuando se publiquen materiales de mi interés
       </span>
     </label>
+
+    {/* Add-on: unidades de recolección propias */}
+    <div className="border-t border-gray-100 pt-5 space-y-4">
+      <label className="flex items-start gap-3 cursor-pointer group">
+        <input type="checkbox" name="tieneUnidadesRecoleccion"
+          checked={formData.tieneUnidadesRecoleccion || false}
+          onChange={handleChange}
+          className="w-4 h-4 mt-0.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500" />
+        <span className="text-sm text-gray-700 group-hover:text-gray-900 leading-snug">
+          <span className="font-medium">¿Cuentas con unidades o equipo de recolección propio?</span>
+          <span className="block text-xs text-gray-500 mt-0.5">
+            Si tienes flota o capacidad de recolección, puedes inscribirte también como recolector.
+          </span>
+        </span>
+      </label>
+      {formData.tieneUnidadesRecoleccion && (
+        <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-4">
+          <div className="flex items-center gap-2 text-teal-700">
+            <Truck size={16} />
+            <span className="text-xs font-semibold">Información de tus unidades de recolección</span>
+          </div>
+          <Select name="tipoVehiculo" label="Tipo de vehículo / equipo" id="tipoVehiculo"
+            value={formData.tipoVehiculo || ''} onChange={handleChange}
+            options={['Camioneta pickup', 'Camión de 3.5 ton', 'Camión de carga', 'Motocicleta con carga', 'Bicicleta de carga']}
+            includeOther />
+          <Input id="capacidadKg" name="capacidadKg" label="Capacidad aprox. (kg por viaje)"
+            type="number" value={formData.capacidadKg || ''} onChange={handleChange}
+            placeholder="Ej: 500" />
+          <Input id="zonasRecoleccion" name="zonasRecoleccion" label="Zonas de recolección que cubres"
+            icon={<MapPin size={16}/>} value={formData.zonasRecoleccion || ''} onChange={handleChange}
+            placeholder="Ej: Monterrey, Guadalupe, San Nicolás" />
+        </div>
+      )}
+    </div>
   </div>
 );
 
@@ -250,6 +285,39 @@ function getPasswordStrength(pw: string) {
 const strengthLabels = ['', 'Débil', 'Regular', 'Buena', 'Fuerte'];
 const strengthColors = ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-emerald-500'];
 
+// ─── Notificación a admins al registrar comprador ─────────────────────────────
+
+async function notifyAdminsNewBuyer(buyerName: string, buyerEmail: string) {
+  try {
+    const { data: admins } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'admin');
+    if (!admins?.length) return;
+
+    // Obtener el id del nuevo usuario recién registrado
+    const { data: newUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', buyerEmail)
+      .single();
+
+    const senderId = newUser?.id || admins[0].id;
+
+    await supabase.from('messages').insert(
+      admins.map((admin: { id: string }) => ({
+        sender_id: senderId,
+        receiver_id: admin.id,
+        subject: 'Nuevo comprador registrado',
+        content: `${buyerName} (${buyerEmail}) se ha registrado como Comprador / Reciclador y está pendiente de verificación.`,
+        read: false,
+      }))
+    );
+  } catch {
+    // No bloquear el flujo si la notificación falla
+  }
+}
+
 // ─── Main Register component ──────────────────────────────────────────────────
 
 function Register() {
@@ -311,11 +379,19 @@ function Register() {
     if (signUpError) {
       if ((signUpError as any).code === 'EMAIL_CONFIRMATION_REQUIRED') {
         setEmailConfirmationPending(true);
+        // Aún así notificar a admins si es buyer
+        if (selectedRole === UserRole.BUYER) {
+          notifyAdminsNewBuyer(name, email);
+        }
       } else {
         setError(signUpError.message || 'Error al registrar. Intenta de nuevo.');
       }
       setLoading(false);
     } else {
+      // Notificar a admins cuando se registra un comprador
+      if (selectedRole === UserRole.BUYER) {
+        notifyAdminsNewBuyer(name, email);
+      }
       navigate('/dashboard');
     }
   };

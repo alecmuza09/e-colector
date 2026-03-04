@@ -386,3 +386,39 @@ CREATE POLICY "Users can view own favorites" ON public.favorites
 
 CREATE POLICY "Users can manage own favorites" ON public.favorites
   FOR ALL USING (auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id));
+
+-- ============================================
+-- MIGRACIÓN: Stocks de recolector e impacto verde
+-- ============================================
+
+-- Ampliar tipo de product para stocks del recolector
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_type_check;
+ALTER TABLE public.products ADD CONSTRAINT products_type_check
+  CHECK (type IN ('venta', 'donacion', 'stock_recolector'));
+
+-- Columna de notas para listings de stock del recolector
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- Nueva tabla para impacto verde (migrar desde localStorage)
+CREATE TABLE IF NOT EXISTS public.green_impact_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  collector_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  material TEXT NOT NULL,
+  quantity_kg DECIMAL(10,2) NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  source TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_green_impact_collector ON public.green_impact_log(collector_id);
+
+-- RLS para green_impact_log
+ALTER TABLE public.green_impact_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "collectors_manage_own_impact" ON public.green_impact_log
+  FOR ALL USING (
+    collector_id = (SELECT id FROM public.users WHERE auth_user_id = auth.uid())
+  );
+CREATE POLICY "admins_read_all_impact" ON public.green_impact_log
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.users WHERE auth_user_id = auth.uid() AND role = 'admin')
+  );

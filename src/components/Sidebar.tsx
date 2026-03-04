@@ -18,6 +18,7 @@ import {
   Bell,
   Search,
   X,
+  Store,
 } from 'lucide-react';
 
 type NotifItem = {
@@ -54,12 +55,13 @@ const Sidebar = () => {
   const { userRole, logout, isAuthenticated, userProfile, userName } = useAuth();
 
   const navItems = [
-    { label: 'Inicio', icon: Home, path: '/' },
-    { label: 'Mi Panel', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Explorar Mapa', icon: Map, path: '/explorar' },
-    { label: 'Publicar', icon: Plus, path: '/publicar' },
-    { label: 'Mensajes', icon: MessageCircle, path: '/mensajes', badge: unreadMessages },
-  ];
+    { label: 'Inicio', icon: Home, path: '/', roles: null },
+    { label: 'Mi Panel', icon: LayoutDashboard, path: '/dashboard', roles: null },
+    { label: 'Explorar Mapa', icon: Map, path: '/explorar', roles: null },
+    { label: 'Publicar', icon: Plus, path: '/publicar', roles: ['seller', 'collector', 'admin'] },
+    { label: 'Stocks Recolectores', icon: Store, path: '/mercado-recolectores', roles: ['buyer', 'admin'] },
+    { label: 'Mensajes', icon: MessageCircle, path: '/mensajes', badge: unreadMessages, roles: null },
+  ].filter(item => !item.roles || !userRole || item.roles.includes(userRole));
 
   const secondaryItems = [
     { label: 'Estadísticas', icon: BarChart3, path: '/estadisticas' },

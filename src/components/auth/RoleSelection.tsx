@@ -8,21 +8,12 @@ interface RoleSelectionProps {
 
 const roles = [
   {
-    role: UserRole.BUYER,
-    emoji: '🏢',
-    title: 'Comprador',
-    subtitle: 'Empresas e industrias',
-    description: 'Busco adquirir materiales reciclables para mi proceso industrial o comercial.',
-    perks: ['Acceso a ofertas de materiales', 'Alertas por categoría', 'Contacto directo con generadores'],
-    color: 'blue',
-  },
-  {
     role: UserRole.SELLER,
-    emoji: '♻️',
-    title: 'Vendedor / Generador',
+    emoji: '🏠',
+    title: 'Generador / Vendedor',
     subtitle: 'Hogares y negocios',
-    description: 'Genero residuos reciclables y quiero venderlos o que los recolecten.',
-    perks: ['Publica materiales gratis', 'Recibe ofertas', 'Conecta con recolectores'],
+    description: 'Perfil claro que genera, vende o regala materiales reciclables.',
+    perks: ['Publica materiales gratis', 'Recibe ofertas de recolectores', 'Conecta con compradores'],
     color: 'emerald',
   },
   {
@@ -30,9 +21,18 @@ const roles = [
     emoji: '🚚',
     title: 'Recolector / Empresa',
     subtitle: 'Centros y empresas recicladoras',
-    description: 'Ofrezco servicios de recolección, compra o procesamiento de materiales.',
-    perks: ['Perfil verificado', 'Gestiona zonas de operación', 'Recibe solicitudes de recolección'],
+    description: 'Ve quién vende u ofrece materiales y ofrece servicios de recolección o compra.',
+    perks: ['Accede a publicaciones de generadores', 'Registra tu impacto verde', 'Publica tu inventario disponible'],
     color: 'teal',
+  },
+  {
+    role: UserRole.BUYER,
+    emoji: '🏭',
+    title: 'Comprador / Reciclador',
+    subtitle: 'Empresas e industrias',
+    description: 'Adquiere materiales reciclables para tus procesos industriales o comerciales.',
+    perks: ['Ve stocks disponibles de recolectores', 'Alertas por categoría y volumen', 'Contacto directo con proveedores'],
+    color: 'blue',
   },
 ];
 

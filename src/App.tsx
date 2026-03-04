@@ -37,6 +37,7 @@ const RecolectorProfile = lazy(() => import('./pages/profile/RecolectorProfile')
 const Mensajes = lazy(() => import('./pages/Mensajes'));
 const Estadisticas = lazy(() => import('./pages/Estadisticas'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
+const CollectorMarketplace = lazy(() => import('./pages/CollectorMarketplace'));
 
 // Scroll al inicio en cada cambio de ruta
 function ScrollToTop() {
@@ -87,6 +88,7 @@ const allRoutes = (
     <Route path="/legal/privacidad" element={<PrivacyPolicy />} />
     <Route path="/legal/terminos" element={<TermsOfService />} />
     <Route path="/legal/cookies" element={<CookiePolicy />} />
+    <Route path="/mercado-recolectores" element={<CollectorMarketplace />} />
   </>
 );
 

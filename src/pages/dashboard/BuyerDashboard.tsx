@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
   Search, Package, MessageSquare, ShoppingCart, MapPin,
-  Clock, CheckCircle, XCircle, TrendingUp, ExternalLink, Loader, ChevronRight
+  Clock, CheckCircle, XCircle, TrendingUp, ExternalLink, Loader, ChevronRight,
+  AlertTriangle, Store,
 } from 'lucide-react';
 
 type OfferRow = {
@@ -107,6 +108,20 @@ export default function BuyerDashboard() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
 
+      {/* Banner: cuenta en verificación */}
+      {userProfile && !(userProfile as any).is_verified && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-yellow-800 text-sm">Cuenta en verificación</p>
+            <p className="text-xs text-yellow-700 mt-0.5 leading-relaxed">
+              Tu cuenta está siendo revisada por nuestro equipo. Recibirás una notificación cuando sea aprobada.
+              Algunas funciones (como contactar recolectores y ver stocks completos) estarán disponibles una vez verificada.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Hero banner */}
       <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 text-white">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -119,6 +134,10 @@ export default function BuyerDashboard() {
             <Link to="/explorar"
               className="flex items-center gap-1.5 bg-white text-blue-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors">
               <Search className="w-4 h-4" /> Explorar materiales
+            </Link>
+            <Link to="/mercado-recolectores"
+              className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+              <Store className="w-4 h-4" /> Stocks recolectores
             </Link>
             <Link to="/mensajes"
               className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
@@ -226,9 +245,10 @@ export default function BuyerDashboard() {
       {/* Acciones rápidas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { to: '/explorar', icon: Search,       label: 'Explorar materiales', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-          { to: '/mensajes', icon: MessageSquare, label: 'Mis mensajes',        color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-          { to: '/perfil',   icon: XCircle,       label: 'Mi perfil',           color: 'bg-purple-50 text-purple-700 border-purple-200' },
+          { to: '/explorar',             icon: Search,       label: 'Explorar materiales',    color: 'bg-blue-50 text-blue-700 border-blue-200' },
+          { to: '/mercado-recolectores', icon: Store,        label: 'Stocks recolectores',     color: 'bg-teal-50 text-teal-700 border-teal-200' },
+          { to: '/mensajes',             icon: MessageSquare, label: 'Mis mensajes',           color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          { to: '/perfil',               icon: TrendingUp,    label: 'Mi perfil',              color: 'bg-purple-50 text-purple-700 border-purple-200' },
         ].map(a => (
           <Link key={a.to} to={a.to}
             className={`flex flex-col items-center gap-2 p-4 rounded-xl border text-center hover:shadow-sm transition-shadow ${a.color}`}>
