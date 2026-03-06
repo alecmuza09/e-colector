@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Send, Loader, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Search, Send, Loader, MessageCircle, ArrowLeft, Handshake, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -52,6 +52,26 @@ export default function Mensajes() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const myId = userProfile?.id;
+  const [tradeSuccess, setTradeSuccess] = useState(false);
+  const [tradeSending, setTradeSending] = useState(false);
+
+  const handleConfirmTrade = async () => {
+    if (!myId || !selectedOtherUserId || tradeSending) return;
+    setTradeSending(true);
+    try {
+      await supabase.from('trade_connections').insert({
+        buyer_id: myId,
+        seller_id: selectedOtherUserId,
+        status: 'acordado',
+        notes: `Acuerdo confirmado desde chat con ${currentConversation?.name || selectedOtherUserId}`,
+      });
+      setTradeSuccess(true);
+      setTimeout(() => setTradeSuccess(false), 4000);
+    } catch (e) {
+      console.error('Error registrando acuerdo:', e);
+    }
+    setTradeSending(false);
+  };
 
   const loadMessages = async () => {
     if (!myId) return;
@@ -309,12 +329,29 @@ export default function Mensajes() {
               <div className="w-9 h-9 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
                 {currentConversation.name.charAt(0).toUpperCase()}
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 text-sm">{currentConversation.name}</p>
                 {currentConversation.subject && (
                   <p className="text-xs text-emerald-600 truncate">{currentConversation.subject}</p>
                 )}
               </div>
+
+              {/* Botón Confirmar acuerdo */}
+              {tradeSuccess ? (
+                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-xl">
+                  <CheckCircle className="w-3.5 h-3.5" /> ¡Acuerdo registrado!
+                </div>
+              ) : (
+                <button
+                  onClick={handleConfirmTrade}
+                  disabled={tradeSending}
+                  title="Registrar un acuerdo comercial con este contacto"
+                  className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 flex-shrink-0"
+                >
+                  {tradeSending ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Handshake className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">Confirmar acuerdo</span>
+                </button>
+              )}
             </div>
 
             {/* Messages */}

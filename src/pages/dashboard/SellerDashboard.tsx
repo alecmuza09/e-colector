@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
   Package, PlusCircle, DollarSign, Clock, CheckCircle, MapPin,
-  Edit, Trash2, Loader, ChevronRight, TrendingUp, MessageSquare, ExternalLink
+  Edit, Trash2, Loader, ChevronRight, TrendingUp, MessageSquare, ExternalLink, AlertTriangle
 } from 'lucide-react';
 
 type UserProduct = {
@@ -103,6 +103,20 @@ export default function SellerDashboard() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+      {/* Banner: cuenta en verificación */}
+      {userProfile && !(userProfile as any).is_verified && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-yellow-800 text-sm">Cuenta en verificación</p>
+            <p className="text-xs text-yellow-700 mt-0.5 leading-relaxed">
+              Tu cuenta está siendo revisada por nuestro equipo. Recibirás una notificación cuando sea aprobada.
+              Mientras tanto puedes explorar la plataforma.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Hero banner */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 text-white">

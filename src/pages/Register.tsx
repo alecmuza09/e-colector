@@ -287,7 +287,13 @@ const strengthColors = ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-em
 
 // ─── Notificación a admins al registrar comprador ─────────────────────────────
 
-async function notifyAdminsNewBuyer(buyerName: string, buyerEmail: string) {
+const roleDisplayName: Record<string, string> = {
+  buyer: 'Comprador / Reciclador',
+  seller: 'Generador / Vendedor',
+  collector: 'Recolector / Empresa',
+};
+
+async function notifyAdminsNewUser(userName: string, userEmail: string, role: string) {
   try {
     const { data: admins } = await supabase
       .from('users')
@@ -295,21 +301,21 @@ async function notifyAdminsNewBuyer(buyerName: string, buyerEmail: string) {
       .eq('role', 'admin');
     if (!admins?.length) return;
 
-    // Obtener el id del nuevo usuario recién registrado
     const { data: newUser } = await supabase
       .from('users')
       .select('id')
-      .eq('email', buyerEmail)
+      .eq('email', userEmail)
       .single();
 
     const senderId = newUser?.id || admins[0].id;
+    const roleName = roleDisplayName[role] || role;
 
     await supabase.from('messages').insert(
       admins.map((admin: { id: string }) => ({
         sender_id: senderId,
         receiver_id: admin.id,
-        subject: 'Nuevo comprador registrado',
-        content: `${buyerName} (${buyerEmail}) se ha registrado como Comprador / Reciclador y está pendiente de verificación.`,
+        subject: `Nuevo usuario registrado: ${roleName}`,
+        content: `${userName} (${userEmail}) se ha registrado como ${roleName} y está pendiente de verificación.`,
         read: false,
       }))
     );
@@ -379,19 +385,13 @@ function Register() {
     if (signUpError) {
       if ((signUpError as any).code === 'EMAIL_CONFIRMATION_REQUIRED') {
         setEmailConfirmationPending(true);
-        // Aún así notificar a admins si es buyer
-        if (selectedRole === UserRole.BUYER) {
-          notifyAdminsNewBuyer(name, email);
-        }
+        notifyAdminsNewUser(name, email, selectedRole);
       } else {
         setError(signUpError.message || 'Error al registrar. Intenta de nuevo.');
       }
       setLoading(false);
     } else {
-      // Notificar a admins cuando se registra un comprador
-      if (selectedRole === UserRole.BUYER) {
-        notifyAdminsNewBuyer(name, email);
-      }
+      notifyAdminsNewUser(name, email, selectedRole);
       navigate('/dashboard');
     }
   };

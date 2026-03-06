@@ -4,6 +4,7 @@ import {
   Bell,
   Lock,
   Eye,
+  EyeOff,
   Mail,
   Phone,
   MapPin,
@@ -13,7 +14,10 @@ import {
   Save,
   ToggleLeft,
   ToggleRight,
-  Trash2
+  Trash2,
+  CheckCircle,
+  X,
+  Loader,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AdminConsole from './admin/AdminConsole';
@@ -146,26 +150,36 @@ export default function Configuracion() {
     },
   ];
 
-  const securityOptions = [
-    {
-      icon: Lock,
-      title: 'Contraseña',
-      description: 'Cambiar tu contraseña',
-      action: 'Cambiar',
-    },
-    {
-      icon: Zap,
-      title: 'Autenticación de Dos Factores',
-      description: 'Añade una capa extra de seguridad',
-      action: 'Configurar',
-    },
-    {
-      icon: Eye,
-      title: 'Sesiones Activas',
-      description: 'Administra tus dispositivos conectados',
-      action: 'Ver',
-    },
-  ];
+  // Password change state
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [pwForm, setPwForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+
+  const handleChangePassword = async () => {
+    setPwError(null);
+    if (pwForm.newPassword.length < 8) {
+      setPwError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError('Las contraseñas no coinciden.');
+      return;
+    }
+    setPwLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: pwForm.newPassword });
+    setPwLoading(false);
+    if (error) {
+      setPwError(error.message || 'Error al cambiar la contraseña.');
+      return;
+    }
+    setPwSuccess(true);
+    setPwForm({ newPassword: '', confirmPassword: '' });
+    setTimeout(() => { setPwSuccess(false); setShowPasswordForm(false); }, 3000);
+  };
 
   const preferences = [
     {
@@ -317,26 +331,95 @@ export default function Configuracion() {
           </h2>
 
           <div className="space-y-3">
-            {securityOptions.map((option) => {
-              const Icon = option.icon;
-              return (
-                <div
-                  key={option.title}
-                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5 text-emerald-600" />
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{option.title}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{option.description}</p>
-                    </div>
+            {/* Cambiar contraseña */}
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <Lock className="w-5 h-5 text-emerald-600" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Contraseña</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Cambiar tu contraseña de acceso</p>
                   </div>
-                  <button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors">
-                    {option.action}
-                  </button>
                 </div>
-              );
-            })}
+                <button
+                  onClick={() => { setShowPasswordForm(v => !v); setPwError(null); setPwSuccess(false); }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  {showPasswordForm ? 'Cancelar' : 'Cambiar'}
+                </button>
+              </div>
+
+              {showPasswordForm && (
+                <div className="border-t border-gray-200 dark:border-gray-600 p-4 space-y-3">
+                  {pwSuccess ? (
+                    <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm">
+                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                      Contraseña actualizada correctamente.
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Nueva contraseña</label>
+                        <div className="relative">
+                          <input
+                            type={showNewPw ? 'text' : 'password'}
+                            value={pwForm.newPassword}
+                            onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))}
+                            placeholder="Mínimo 8 caracteres"
+                            className="w-full pl-4 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <button type="button" onClick={() => setShowNewPw(v => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Confirmar nueva contraseña</label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPw ? 'text' : 'password'}
+                            value={pwForm.confirmPassword}
+                            onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                            placeholder="Repite la nueva contraseña"
+                            className="w-full pl-4 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                          <button type="button" onClick={() => setShowConfirmPw(v => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      {pwError && (
+                        <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs">
+                          <X className="w-3.5 h-3.5 flex-shrink-0" /> {pwError}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleChangePassword}
+                        disabled={pwLoading}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors"
+                      >
+                        {pwLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {pwLoading ? 'Guardando...' : 'Guardar contraseña'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Sesiones activas — placeholder */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="flex items-center gap-3">
+                <Eye className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Sesiones Activas</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Administra tus dispositivos conectados</p>
+                </div>
+              </div>
+              <span className="text-xs text-gray-400 italic">Próximamente</span>
+            </div>
           </div>
         </div>
 

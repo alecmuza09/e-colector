@@ -38,6 +38,7 @@ const Mensajes = lazy(() => import('./pages/Mensajes'));
 const Estadisticas = lazy(() => import('./pages/Estadisticas'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
 const CollectorMarketplace = lazy(() => import('./pages/CollectorMarketplace'));
+const Donate = lazy(() => import('./pages/info/Donate'));
 
 // Scroll al inicio en cada cambio de ruta
 function ScrollToTop() {
@@ -89,6 +90,7 @@ const allRoutes = (
     <Route path="/legal/terminos" element={<TermsOfService />} />
     <Route path="/legal/cookies" element={<CookiePolicy />} />
     <Route path="/mercado-recolectores" element={<CollectorMarketplace />} />
+    <Route path="/apoya" element={<Donate />} />
   </>
 );
 
@@ -127,7 +129,7 @@ function AppContent() {
             <Routes>{allRoutes}</Routes>
           </Suspense>
         </div>
-        <Footer />
+        {!isAuthenticated && <Footer />}
       </main>
     </div>
   );

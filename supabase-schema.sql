@@ -422,3 +422,40 @@ CREATE POLICY "admins_read_all_impact" ON public.green_impact_log
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.users WHERE auth_user_id = auth.uid() AND role = 'admin')
   );
+
+-- ─── Tabla trade_connections: registra cierres de acuerdo comercial ──────────
+CREATE TABLE IF NOT EXISTS public.trade_connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  buyer_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  seller_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+  agreed_price DECIMAL(10,2),
+  agreed_quantity TEXT,
+  status TEXT DEFAULT 'acordado' CHECK (status IN ('pendiente','negociando','acordado','completado','cancelado')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_trade_buyer ON public.trade_connections(buyer_id);
+CREATE INDEX IF NOT EXISTS idx_trade_seller ON public.trade_connections(seller_id);
+
+ALTER TABLE public.trade_connections ENABLE ROW LEVEL SECURITY;
+
+-- Usuarios involucrados pueden ver sus propias conexiones
+CREATE POLICY "users_see_own_trades" ON public.trade_connections
+  FOR SELECT USING (
+    buyer_id = (SELECT id FROM public.users WHERE auth_user_id = auth.uid())
+    OR seller_id = (SELECT id FROM public.users WHERE auth_user_id = auth.uid())
+  );
+
+-- Cualquier usuario autenticado puede insertar (inicia el acuerdo)
+CREATE POLICY "authenticated_insert_trade" ON public.trade_connections
+  FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL
+  );
+
+-- Admin puede ver todo
+CREATE POLICY "admins_read_all_trades" ON public.trade_connections
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.users WHERE auth_user_id = auth.uid() AND role = 'admin')
+  );

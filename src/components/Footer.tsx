@@ -5,35 +5,13 @@ import { Facebook, Linkedin, Instagram, Youtube, Mail, Phone, MapPin, Heart, Tre
 const Footer = () => {
   return (
     <footer className="bg-gradient-to-b from-gray-900 to-black text-gray-300">
-      {/* Newsletter Section */}
-      <div className="border-b border-gray-700 bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-900 dark:to-teal-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <h3 className="text-2xl md:text-3xl font-bold mb-2">Mantente Informado</h3>
-              <p className="text-emerald-100">Recibe noticias sobre nuevos materiales y oportunidades directamente en tu bandeja</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="email"
-                placeholder="tu@email.com"
-                className="flex-1 px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-              />
-              <button className="sm:flex-shrink-0 px-6 py-3 bg-white text-emerald-600 font-bold rounded-lg hover:bg-emerald-50 transition-colors whitespace-nowrap">
-                Suscribirse
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mb-12">
           {/* Company Info */}
           <div className="col-span-1 sm:col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <img src="/assets/images/logo-full.png" alt="e-colector" className="h-10 object-contain mix-blend-screen" />
+              <img src="/assets/images/logo-transparent.png" alt="e-colector" className="h-10 object-contain" />
             </div>
             <p className="text-sm text-gray-400 mb-4">
               La plataforma número 1 para conectar recolectores, generadores y empresas recicladoras en México.
@@ -41,7 +19,7 @@ const Footer = () => {
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2 text-gray-400 hover:text-emerald-400 transition-colors">
                 <Mail className="w-4 h-4" />
-                <a href="mailto:hola@ecolector.com">hola@ecolector.com</a>
+                <a href="mailto:hola@e-colector.com">hola@e-colector.com</a>
               </div>
               <div className="flex items-center gap-2 text-gray-400 hover:text-emerald-400 transition-colors">
                 <Phone className="w-4 h-4" />
@@ -95,13 +73,8 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="https://www.instagram.com/ecolector/" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-emerald-400 transition-colors flex items-center gap-2">
+                <a href="https://www.instagram.com/ecolector62" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:text-emerald-400 transition-colors flex items-center gap-2">
                   <span className="text-lg">🔗</span> Comunidad
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-sm text-gray-400 hover:text-emerald-400 transition-colors flex items-center gap-2">
-                  <span className="text-lg">🗺️</span> Mapa de Municipios
                 </a>
               </li>
             </ul>
@@ -135,6 +108,17 @@ const Footer = () => {
               </li>
             </ul>
           </div>
+        </div>
+
+        {/* Donación CTA */}
+        <div className="border-t border-gray-700 pt-8 mb-8 text-center">
+          <p className="text-sm text-gray-400 mb-4">¿Crees en el reciclaje como motor de cambio social?</p>
+          <Link
+            to="/apoya"
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm px-6 py-3 rounded-xl transition-colors"
+          >
+            <Heart className="w-4 h-4 fill-white" /> Apoya el Movimiento
+          </Link>
         </div>
 
         {/* Legal & Social */}
