@@ -186,7 +186,11 @@ export default function CollectorDashboard() {
       .select()
       .single();
     setSavingImpact(false);
-    if (error) { setImpactFormError('Error al guardar. Intenta de nuevo.'); return; }
+    if (error) {
+      console.error('Supabase error al guardar impacto:', error);
+      setImpactFormError(`Error al guardar: ${error.message || 'Intenta de nuevo.'}`);
+      return;
+    }
     setEntries(prev => [{
       id: data.id, material: data.material, quantity_kg: Number(data.quantity_kg),
       date: data.date, source: data.source,
