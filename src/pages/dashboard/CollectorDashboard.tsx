@@ -12,16 +12,20 @@ import {
 } from 'lucide-react';
 
 // ─── Factores de impacto por kg ─────────────────────────────────────────────
+// Fuentes: EPA WARM Model, WRAP UK (2016), Fundación Ellen MacArthur
+// co2   → kg CO₂ evitados por kg reciclado vs producción virgen
+// water → litros de agua conservados por kg reciclado
+// energy→ kWh ahorrados por kg reciclado vs producción virgen
 const MATERIALS = [
-  { key: 'PET',            label: 'Plástico PET',      emoji: '♳', co2: 3.75, water: 13,  energy: 0.24  },
-  { key: 'HDPE',           label: 'Plástico HDPE',     emoji: '♴', co2: 1.70, water: 9,   energy: 0.30  },
-  { key: 'Plástico mixto', label: 'Plástico mixto',    emoji: '♷', co2: 1.50, water: 8,   energy: 0.25  },
-  { key: 'Cartón / Papel', label: 'Cartón / Papel',    emoji: '📦', co2: 1.10, water: 17,  energy: 0.20  },
+  { key: 'PET',            label: 'Plástico PET',      emoji: '♳', co2: 3.75, water: 17,  energy: 12.5  },
+  { key: 'HDPE',           label: 'Plástico HDPE',     emoji: '♴', co2: 1.70, water: 9,   energy: 12.8  },
+  { key: 'Plástico mixto', label: 'Plástico mixto',    emoji: '♷', co2: 1.50, water: 8,   energy: 6.5   },
+  { key: 'Cartón / Papel', label: 'Cartón / Papel',    emoji: '📦', co2: 1.10, water: 17,  energy: 3.5   },
   { key: 'Metales',        label: 'Metales / Acero',   emoji: '🔩', co2: 4.50, water: 25,  energy: 10.00 },
-  { key: 'Aluminio',       label: 'Aluminio',          emoji: '🥫', co2: 9.10, water: 17,  energy: 14.00 },
-  { key: 'Vidrio',         label: 'Vidrio',            emoji: '🍶', co2: 0.30, water: 1.5, energy: 0.05  },
+  { key: 'Aluminio',       label: 'Aluminio',          emoji: '🥫', co2: 9.10, water: 40,  energy: 14.00 },
+  { key: 'Vidrio',         label: 'Vidrio',            emoji: '🍶', co2: 0.30, water: 1.5, energy: 0.64  },
   { key: 'Electrónicos',   label: 'Electrónicos RAEE', emoji: '💻', co2: 20.0, water: 50,  energy: 25.00 },
-  { key: 'Textiles',       label: 'Textiles',          emoji: '👕', co2: 3.60, water: 100, energy: 2.50  },
+  { key: 'Textiles',       label: 'Textiles',          emoji: '👕', co2: 3.60, water: 200, energy: 2.50  },
   { key: 'Orgánico',       label: 'Orgánico',          emoji: '🌿', co2: 0.55, water: 5,   energy: 0.10  },
 ];
 
