@@ -64,7 +64,6 @@ const Sidebar = () => {
   useEffect(() => {
     if (!isAuthenticated || !userProfile?.id) {
       setUnreadMessages(0);
-      setNotifications([]);
       return;
     }
 
