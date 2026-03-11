@@ -177,7 +177,7 @@ export default function HomeAuthenticated() {
               Ver mapa completo <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
-          <div className="h-72 md:h-96">
+          <div className="h-72 md:h-96 [isolation:isolate]">
             <MapContainer center={MEXICO_CENTER} zoom={11} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

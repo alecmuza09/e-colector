@@ -441,7 +441,7 @@ const Home = () => {
             <p className="text-gray-600 dark:text-gray-400">Haz clic en cualquier municipio para ver los materiales disponibles</p>
           </div>
           
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-emerald-200 dark:border-emerald-900/50 h-[50vh] md:h-[60vh]">
+          <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-emerald-200 dark:border-emerald-900/50 h-[50vh] md:h-[60vh] [isolation:isolate]">
             <MapContainer 
               center={MONTERREY_CENTER}
               zoom={11} 
