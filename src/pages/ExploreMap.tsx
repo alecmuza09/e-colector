@@ -140,6 +140,8 @@ const ExploreMapLeaflet = () => {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [minPrice, setMinPrice] = useState<string>('');
+  const [maxPrice, setMaxPrice] = useState<string>('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Cargar productos desde Supabase
@@ -157,12 +159,10 @@ const ExploreMapLeaflet = () => {
   const filteredProducts = useMemo(() => {
     let results = products;
 
-    // Filtrar por categoría
     if (selectedCategory !== 'Todos') {
       results = results.filter(p => p.category === selectedCategory);
     }
 
-    // Filtrar por búsqueda
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       results = results.filter(p =>
@@ -173,8 +173,15 @@ const ExploreMapLeaflet = () => {
       );
     }
 
+    if (minPrice !== '') {
+      results = results.filter(p => p.price >= Number(minPrice));
+    }
+    if (maxPrice !== '') {
+      results = results.filter(p => p.price <= Number(maxPrice));
+    }
+
     return results;
-  }, [products, selectedCategory, searchTerm]);
+  }, [products, selectedCategory, searchTerm, minPrice, maxPrice]);
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: currency }).format(price);
@@ -184,6 +191,8 @@ const ExploreMapLeaflet = () => {
     setSelectedCategory('Todos');
     setSearchTerm('');
     setActiveFilters(['Todos']);
+    setMinPrice('');
+    setMaxPrice('');
     if (searchInputRef.current) {
       searchInputRef.current.value = '';
     }
@@ -273,6 +282,33 @@ const ExploreMapLeaflet = () => {
             </div>
           </div>
 
+          {/* Filtro de Precio */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Rango de precio (MXN/kg)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                placeholder="Mínimo"
+                value={minPrice}
+                onChange={e => setMinPrice(e.target.value)}
+                className="flex-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                min="0"
+              />
+              <span className="text-gray-400 text-xs">—</span>
+              <input
+                type="number"
+                placeholder="Máximo"
+                value={maxPrice}
+                onChange={e => setMaxPrice(e.target.value)}
+                className="flex-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                min="0"
+              />
+            </div>
+          </div>
+
           {/* Información de Resultados */}
           <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
             <p className="text-sm text-blue-800 dark:text-blue-300 font-medium">
@@ -283,7 +319,7 @@ const ExploreMapLeaflet = () => {
           </div>
 
           {/* Botón Resetear Filtros */}
-          {(searchTerm || selectedCategory !== 'Todos') && (
+          {(searchTerm || selectedCategory !== 'Todos' || minPrice || maxPrice) && (
             <button
               onClick={handleResetFilters}
               className="w-full py-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"

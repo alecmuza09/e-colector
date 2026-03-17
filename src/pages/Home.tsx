@@ -24,25 +24,79 @@ const MUNICIPALITIES = [
 ] as const;
 type Municipality = typeof MUNICIPALITIES[number];
 
-// --- PLACEHOLDER GeoJSON Data --- 
-// ¡REEMPLAZAR CON DATOS GEOJSON REALES DE LOS MUNICIPIOS!
+// --- GeoJSON AMM (Área Metropolitana de Monterrey) ---
+// Polígonos simplificados basados en límites municipales reales aproximados (INEGI)
 const geoJsonData: GeoJSON.FeatureCollection = {
   type: 'FeatureCollection',
   features: [
-    // Ejemplo Monterrey (Coordenadas FALSAS - solo un cuadrado pequeño)
-    { type: 'Feature', properties: { name: 'Monterrey' }, geometry: { type: 'Polygon', coordinates: [[[-100.30, 25.67], [-100.32, 25.67], [-100.32, 25.69], [-100.30, 25.69], [-100.30, 25.67]]] } },
-    // Ejemplo San Nicolás (Coordenadas FALSAS)
-    { type: 'Feature', properties: { name: 'San Nicolás de los Garza' }, geometry: { type: 'Polygon', coordinates: [[[-100.28, 25.72], [-100.30, 25.72], [-100.30, 25.74], [-100.28, 25.74], [-100.28, 25.72]]] } },
-     // Ejemplo San Pedro (Coordenadas FALSAS)
-    { type: 'Feature', properties: { name: 'San Pedro Garza García' }, geometry: { type: 'Polygon', coordinates: [[[-100.35, 25.65], [-100.37, 25.65], [-100.37, 25.67], [-100.35, 25.67], [-100.35, 25.65]]] } },
-    // Añadir placeholders similares para Guadalupe, Apodaca, Escobedo, Santa Catarina
-     { type: 'Feature', properties: { name: 'Guadalupe' }, geometry: { type: 'Polygon', coordinates: [[[-100.23, 25.69], [-100.25, 25.69], [-100.25, 25.71], [-100.23, 25.71], [-100.23, 25.69]]] } },
-     { type: 'Feature', properties: { name: 'Apodaca' }, geometry: { type: 'Polygon', coordinates: [[[-100.18, 25.77], [-100.20, 25.77], [-100.20, 25.79], [-100.18, 25.79], [-100.18, 25.77]]] } },
-     { type: 'Feature', properties: { name: 'Escobedo' }, geometry: { type: 'Polygon', coordinates: [[[-100.31, 25.79], [-100.33, 25.79], [-100.33, 25.81], [-100.31, 25.81], [-100.31, 25.79]]] } },
-     { type: 'Feature', properties: { name: 'Santa Catarina' }, geometry: { type: 'Polygon', coordinates: [[[-100.44, 25.66], [-100.46, 25.66], [-100.46, 25.68], [-100.44, 25.68], [-100.44, 25.66]]] } },
+    {
+      type: 'Feature', properties: { name: 'Monterrey' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-100.4100, 25.5700], [-100.2200, 25.5700], [-100.1900, 25.6200],
+        [-100.2000, 25.7000], [-100.2700, 25.7500], [-100.3500, 25.7600],
+        [-100.4200, 25.7100], [-100.4400, 25.6500], [-100.4100, 25.5700]
+      ]] }
+    },
+    {
+      type: 'Feature', properties: { name: 'San Nicolás de los Garza' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-100.3500, 25.7600], [-100.2700, 25.7500], [-100.2400, 25.7600],
+        [-100.2300, 25.8100], [-100.3000, 25.8200], [-100.3700, 25.8000],
+        [-100.3700, 25.7700], [-100.3500, 25.7600]
+      ]] }
+    },
+    {
+      type: 'Feature', properties: { name: 'San Pedro Garza García' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-100.4400, 25.6500], [-100.4200, 25.7100], [-100.3500, 25.7600],
+        [-100.3500, 25.7000], [-100.3700, 25.6400], [-100.4100, 25.6200],
+        [-100.4500, 25.6300], [-100.4400, 25.6500]
+      ]] }
+    },
+    {
+      type: 'Feature', properties: { name: 'Guadalupe' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-100.2700, 25.7500], [-100.2000, 25.7000], [-100.1900, 25.6200],
+        [-100.1600, 25.6400], [-100.1400, 25.6900], [-100.1500, 25.7300],
+        [-100.2100, 25.7700], [-100.2400, 25.7600], [-100.2700, 25.7500]
+      ]] }
+    },
+    {
+      type: 'Feature', properties: { name: 'Apodaca' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-100.2400, 25.7600], [-100.2100, 25.7700], [-100.1500, 25.7300],
+        [-100.1300, 25.7600], [-100.1400, 25.8200], [-100.1900, 25.8500],
+        [-100.2600, 25.8400], [-100.2800, 25.8100], [-100.2400, 25.7600]
+      ]] }
+    },
+    {
+      type: 'Feature', properties: { name: 'Escobedo' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-100.3700, 25.8000], [-100.3000, 25.8200], [-100.2800, 25.8100],
+        [-100.2600, 25.8400], [-100.2700, 25.8800], [-100.3200, 25.9000],
+        [-100.3800, 25.8700], [-100.3900, 25.8200], [-100.3700, 25.8000]
+      ]] }
+    },
+    {
+      type: 'Feature', properties: { name: 'Santa Catarina' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-100.4400, 25.6500], [-100.4500, 25.6300], [-100.5100, 25.6200],
+        [-100.5500, 25.6500], [-100.5300, 25.7000], [-100.4800, 25.7100],
+        [-100.4200, 25.7100], [-100.4400, 25.6500]
+      ]] }
+    },
+    {
+      type: 'Feature', properties: { name: 'García' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-100.5500, 25.6500], [-100.5100, 25.6200], [-100.5500, 25.5800],
+        [-100.6200, 25.5800], [-100.6800, 25.6300], [-100.6900, 25.7000],
+        [-100.6500, 25.7500], [-100.6000, 25.7700], [-100.5500, 25.7500],
+        [-100.5300, 25.7000], [-100.5500, 25.6500]
+      ]] }
+    },
   ]
 };
-// --- Fin Placeholders GeoJSON ---
+// --- Fin GeoJSON AMM ---
 
 const createCustomIcon = (color: string, isHovered: boolean) => {
   const scale = isHovered ? 1.3 : 1; // Ajustar escala si se desea

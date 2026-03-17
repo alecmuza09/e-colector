@@ -14,7 +14,7 @@ type UserProduct = {
 };
 type OfferRow = {
   id: string; price: number; quantity: string | null; status: string;
-  created_at: string;
+  created_at: string; product_id?: string;
   product?: { title?: string } | null;
   buyer?: { full_name?: string; email?: string } | null;
 };
@@ -83,10 +83,10 @@ export default function SellerDashboard() {
         setLoadingOffers(true);
         const { data: offersData } = await supabase
           .from('offers')
-          .select('id,price,quantity,status,created_at,product:product_id(title),buyer:buyer_id(full_name,email)')
+          .select('id,price,quantity,status,created_at,product_id,product:product_id(title),buyer:buyer_id(full_name,email)')
           .in('product_id', productIds)
           .order('created_at', { ascending: false })
-          .limit(15);
+          .limit(50);
         setOffers((offersData || []) as any);
         setLoadingOffers(false);
       } else {
@@ -164,31 +164,46 @@ export default function SellerDashboard() {
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {products.slice(0, 6).map(p => (
-                <div key={p.id} className="flex items-center gap-3 px-5 py-3 group">
-                  <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
-                    {p.image_url
-                      ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center text-2xl">{categoryEmoji[p.category] || '♻️'}</div>
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{p.title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-gray-400 flex items-center gap-0.5"><MapPin className="w-3 h-3" />{p.municipality}</span>
-                      <span className="text-xs text-emerald-600 font-medium">
-                        {p.type === 'donacion' ? 'Donación' : `$${p.price}`}
-                      </span>
+              {products.slice(0, 6).map(p => {
+                const pendingCount = offers.filter(o => o.product_id === p.id && o.status === 'pendiente').length;
+                const totalOfferCount = offers.filter(o => o.product_id === p.id).length;
+                return (
+                  <div key={p.id} className="flex items-center gap-3 px-5 py-3 group">
+                    <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
+                      {p.image_url
+                        ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center text-2xl">{categoryEmoji[p.category] || '♻️'}</div>
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{p.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-gray-400 flex items-center gap-0.5"><MapPin className="w-3 h-3" />{p.municipality}</span>
+                        <span className="text-xs text-emerald-600 font-medium">
+                          {p.type === 'donacion' ? 'Donación' : `$${p.price}`}
+                        </span>
+                        {totalOfferCount > 0 && (
+                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${
+                            pendingCount > 0
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            <MessageSquare className="w-3 h-3" />
+                            {totalOfferCount} oferta{totalOfferCount !== 1 ? 's' : ''}
+                            {pendingCount > 0 && ` (${pendingCount} pend.)`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {statusBadge(p.status)}
+                      <Link to={`/publicar/${p.id}`} className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Edit className="w-4 h-4" />
+                      </Link>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {statusBadge(p.status)}
-                    <Link to={`/publicar/${p.id}`} className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-gray-100 transition-colors">
-                      <Edit className="w-4 h-4" />
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

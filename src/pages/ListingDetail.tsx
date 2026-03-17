@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { MapPin, DollarSign, CheckCircle, AlertCircle, ArrowLeft, Loader, MessageSquare, Pencil } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle, AlertCircle, ArrowLeft, Loader, MessageSquare, Pencil, Heart } from 'lucide-react';
 import { Product } from '../data/mockProducts';
 import { getProductById } from '../services/products';
+import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -42,6 +43,8 @@ const ListingDetail = () => {
   const [owner, setOwner] = useState<{ id: string; full_name: string; email: string; city: string | null; is_verified: boolean } | null>(null);
   const [offers, setOffers] = useState<OfferRow[]>([]);
   const [offersLoading, setOffersLoading] = useState(false);
+  const [favorited, setFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -75,6 +78,28 @@ const ListingDetail = () => {
     };
     loadOwner();
   }, [product?.userId]);
+
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (!isAuthenticated || !userProfile?.id || !product?.id) return;
+      const result = await isFavorite(userProfile.id, product.id);
+      setFavorited(result);
+    };
+    checkFavorite();
+  }, [isAuthenticated, userProfile?.id, product?.id]);
+
+  const handleToggleFavorite = async () => {
+    if (!isAuthenticated || !userProfile?.id || !product?.id) return;
+    setFavoriteLoading(true);
+    if (favorited) {
+      await removeFavorite(userProfile.id, product.id);
+      setFavorited(false);
+    } else {
+      await addFavorite(userProfile.id, product.id);
+      setFavorited(true);
+    }
+    setFavoriteLoading(false);
+  };
 
   useEffect(() => {
     const loadOffers = async () => {
@@ -221,16 +246,31 @@ const ListingDetail = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {isOwner && (
-        <div className="mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        {isOwner ? (
           <Link
             to={`/publicar/${product.id}`}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium"
           >
             <Pencil className="w-4 h-4" /> Editar mi publicación
           </Link>
-        </div>
-      )}
+        ) : <span />}
+        {isAuthenticated && !isOwner && (
+          <button
+            onClick={handleToggleFavorite}
+            disabled={favoriteLoading}
+            title={favorited ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              favorited
+                ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${favorited ? 'fill-red-500 text-red-500' : ''}`} />
+            {favorited ? 'Guardado' : 'Guardar'}
+          </button>
+        )}
+      </div>
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="relative h-96">
           <img

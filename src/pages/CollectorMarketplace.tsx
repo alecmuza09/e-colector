@@ -2,13 +2,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { getCollectorStocks } from '../services/products';
+import { createRequest } from '../services/requests';
 import { Product } from '../data/mockProducts';
+import { useAuth } from '../context/AuthContext';
 import {
   Search, Package, MapPin, DollarSign, CheckCircle,
   Loader, Filter, X, MessageSquare, Store, SlidersHorizontal,
+  Plus, ClipboardList,
 } from 'lucide-react';
 
 const CATEGORIES = ['Todos', 'PET', 'Cartón', 'Vidrio', 'Metal', 'Electrónicos', 'Papel', 'HDPE', 'Otros'];
+const MATERIAL_OPTIONS = ['PET', 'Cartón', 'Vidrio', 'Metal', 'Electrónicos', 'Papel', 'HDPE', 'Otros'];
 const MUNICIPALITIES = [
   'Todos', 'Monterrey', 'San Nicolás de los Garza', 'San Pedro Garza García',
   'Guadalupe', 'Apodaca', 'Escobedo', 'Santa Catarina', 'García',
@@ -26,12 +30,45 @@ type StockWithCollector = Product & {
 };
 
 export default function CollectorMarketplace() {
+  const { isAuthenticated } = useAuth();
   const [stocks, setStocks] = useState<StockWithCollector[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [municipalityFilter, setMunicipalityFilter] = useState('Todos');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Modal de solicitud de recolección
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestForm, setRequestForm] = useState({
+    material: '', quantity: '', price: '', municipality: '', location: '', description: '',
+  });
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+
+  const handleRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRequestLoading(true);
+    setRequestError(null);
+    try {
+      await createRequest({
+        material: requestForm.material,
+        quantity: requestForm.quantity || undefined,
+        price: requestForm.price || undefined,
+        municipality: requestForm.municipality || undefined,
+        location: requestForm.location || undefined,
+        description: requestForm.description || undefined,
+      });
+      setRequestSuccess(true);
+      setRequestForm({ material: '', quantity: '', price: '', municipality: '', location: '', description: '' });
+      setTimeout(() => { setShowRequestModal(false); setRequestSuccess(false); }, 2000);
+    } catch {
+      setRequestError('Error al crear la solicitud. Intenta de nuevo.');
+    } finally {
+      setRequestLoading(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -90,6 +127,15 @@ export default function CollectorMarketplace() {
             <p className="text-blue-100 text-sm mt-1">
               Materiales disponibles en volumen publicados por recolectores verificados.
             </p>
+            {isAuthenticated && (
+              <button
+                onClick={() => setShowRequestModal(true)}
+                className="mt-4 flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Solicitar Recolección
+              </button>
+            )}
           </div>
           <Store className="w-12 h-12 text-white/30 flex-shrink-0 hidden sm:block" />
         </div>
@@ -279,6 +325,146 @@ export default function CollectorMarketplace() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal Solicitar Recolección */}
+      {showRequestModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                  <ClipboardList className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Solicitar Recolección</h2>
+              </div>
+              <button
+                onClick={() => { setShowRequestModal(false); setRequestError(null); setRequestSuccess(false); }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {requestSuccess ? (
+              <div className="p-8 text-center">
+                <CheckCircle className="w-14 h-14 text-emerald-500 mx-auto mb-3" />
+                <p className="font-bold text-gray-900 dark:text-white text-lg mb-1">¡Solicitud enviada!</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Los recolectores podrán ver tu solicitud y enviarte ofertas.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleRequestSubmit} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                    Material <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={requestForm.material}
+                    onChange={e => setRequestForm(p => ({ ...p, material: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Seleccionar material...</option>
+                    {MATERIAL_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      Cantidad estimada
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: 500 kg"
+                      value={requestForm.quantity}
+                      onChange={e => setRequestForm(p => ({ ...p, quantity: e.target.value }))}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      Precio ofrecido
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: $8/kg"
+                      value={requestForm.price}
+                      onChange={e => setRequestForm(p => ({ ...p, price: e.target.value }))}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      Municipio
+                    </label>
+                    <select
+                      value={requestForm.municipality}
+                      onChange={e => setRequestForm(p => ({ ...p, municipality: e.target.value }))}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {['Monterrey', 'San Nicolás de los Garza', 'San Pedro Garza García', 'Guadalupe', 'Apodaca', 'Escobedo', 'Santa Catarina', 'García'].map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      Ubicación / Referencia
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Zona Contry"
+                      value={requestForm.location}
+                      onChange={e => setRequestForm(p => ({ ...p, location: e.target.value }))}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                    Descripción adicional
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe el estado del material, condiciones de recolección, etc."
+                    value={requestForm.description}
+                    onChange={e => setRequestForm(p => ({ ...p, description: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+
+                {requestError && (
+                  <p className="text-sm text-red-600 dark:text-red-400">{requestError}</p>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowRequestModal(false); setRequestError(null); }}
+                    className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={requestLoading}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+                  >
+                    {requestLoading ? 'Enviando...' : 'Publicar solicitud'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       )}
     </div>

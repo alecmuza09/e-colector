@@ -1,18 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Menu, X, User, LogOut, LayoutDashboard, MapPin, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  unread: boolean;
+  link: string;
+}
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const { isAuthenticated, logout, userName } = useAuth();
+  const { isAuthenticated, logout, userName, userProfile } = useAuth();
   const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const notifications = [
-    { id: 1, title: "Nueva oferta", message: "Oferta por PET recibida", time: "5m", unread: true },
-    { id: 2, title: "Mensaje", message: "Juan te envió un mensaje", time: "1h", unread: false },
-  ];
+  const formatTimeAgo = (dateStr: string): string => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h`;
+    return `${Math.floor(hours / 24)}d`;
+  };
+
+  const loadNotifications = async () => {
+    if (!userProfile?.id) return;
+    try {
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('id, content, created_at, read, sender:sender_id(full_name)')
+        .eq('receiver_id', userProfile.id)
+        .eq('read', false)
+        .order('created_at', { ascending: false })
+        .limit(8);
+
+      const notifs: Notification[] = (messages || []).map((m: any) => ({
+        id: m.id,
+        title: 'Nuevo mensaje',
+        message: `${m.sender?.full_name || 'Alguien'}: ${(m.content as string).slice(0, 60)}${m.content.length > 60 ? '…' : ''}`,
+        time: formatTimeAgo(m.created_at),
+        unread: !m.read,
+        link: '/mensajes',
+      }));
+
+      setNotifications(notifs);
+    } catch (e) {
+      console.error('Error loading notifications:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || !userProfile?.id) return;
+    loadNotifications();
+
+    const channel = supabase
+      .channel(`navbar-notifs-${userProfile.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `receiver_id=eq.${userProfile.id}`,
+      }, () => {
+        loadNotifications();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [isAuthenticated, userProfile?.id]);
 
   const handleLogout = () => {
     logout();
@@ -76,7 +136,12 @@ const Navbar = () => {
                       </div>
                       <div className="max-h-80 overflow-y-auto">
                         {notifications.length > 0 ? notifications.map(notification => (
-                          <div key={notification.id} className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 transition-colors ${notification.unread ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}>
+                          <Link
+                            key={notification.id}
+                            to={notification.link}
+                            onClick={() => setShowNotifications(false)}
+                            className={`block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 transition-colors ${notification.unread ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
+                          >
                             <div className="flex justify-between items-start gap-2">
                               <div>
                                 <h4 className="font-semibold text-sm text-gray-900 dark:text-white">{notification.title}</h4>
@@ -84,12 +149,12 @@ const Navbar = () => {
                               </div>
                               <span className="text-xs text-gray-500 dark:text-gray-500 whitespace-nowrap">{notification.time}</span>
                             </div>
-                          </div>
-                        )) : <p className="text-xs text-gray-500 dark:text-gray-400 px-4 py-4 text-center">Sin notificaciones</p>}
+                          </Link>
+                        )) : <p className="text-xs text-gray-500 dark:text-gray-400 px-4 py-4 text-center">Sin notificaciones nuevas</p>}
                       </div>
                       <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
-                        <Link to="/" className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-semibold" onClick={() => setShowNotifications(false)}>
-                          Ver todas →
+                        <Link to="/mensajes" className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-semibold" onClick={() => setShowNotifications(false)}>
+                          Ver todos los mensajes →
                         </Link>
                       </div>
                     </div>

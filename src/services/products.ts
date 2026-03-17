@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Product } from '../data/mockProducts';
+import { Product } from '../types/product';
 
 export interface ProductFromDB {
   id: string;
@@ -273,6 +273,49 @@ export const getMyCollectorStocks = async (userId: string): Promise<Product[]> =
     return (data || []).map(mapProductFromDB);
   } catch (error) {
     console.error('Error fetching my collector stocks:', error);
+    return [];
+  }
+};
+
+// Filtrar productos con múltiples criterios
+export const filterProducts = async (filters: {
+  query?: string;
+  category?: string;
+  municipality?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  type?: 'venta' | 'donacion' | 'stock_recolector';
+}): Promise<Product[]> => {
+  try {
+    let q = supabase
+      .from('products')
+      .select('*')
+      .eq('status', 'activo');
+
+    if (filters.category && filters.category !== 'Todos') {
+      q = q.eq('category', filters.category);
+    }
+    if (filters.municipality && filters.municipality !== 'Todos') {
+      q = q.eq('municipality', filters.municipality);
+    }
+    if (filters.type) {
+      q = q.eq('type', filters.type);
+    }
+    if (filters.minPrice !== undefined) {
+      q = q.gte('price', filters.minPrice);
+    }
+    if (filters.maxPrice !== undefined) {
+      q = q.lte('price', filters.maxPrice);
+    }
+    if (filters.query && filters.query.trim()) {
+      q = q.or(`title.ilike.%${filters.query}%,description.ilike.%${filters.query}%`);
+    }
+
+    const { data, error } = await q.order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(mapProductFromDB);
+  } catch (error) {
+    console.error('Error filtering products:', error);
     return [];
   }
 };
