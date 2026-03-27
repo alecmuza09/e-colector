@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Send, Loader, MessageCircle, ArrowLeft, Handshake, CheckCircle } from 'lucide-react';
+import { Search, Send, Loader, MessageCircle, ArrowLeft, Handshake, CheckCircle, PackageCheck, X, Tag } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -26,6 +26,15 @@ type Conversation = {
   lastAt: string;
   unread: number;
   subject?: string | null;
+  hasSoldProduct?: boolean;
+};
+
+type ProductMini = {
+  id: string;
+  title: string;
+  category: string;
+  status: string;
+  image_url: string | null;
 };
 
 function timeAgo(dateStr: string) {
@@ -54,6 +63,13 @@ export default function Mensajes() {
   const myId = userProfile?.id;
   const [tradeSuccess, setTradeSuccess] = useState(false);
   const [tradeSending, setTradeSending] = useState(false);
+
+  // ── Marcar como vendido ───────────────────────────────────────────────────
+  const [myProductsInConv, setMyProductsInConv] = useState<ProductMini[]>([]);
+  const [showSoldModal, setShowSoldModal] = useState(false);
+  const [selectedProductToSell, setSelectedProductToSell] = useState<ProductMini | null>(null);
+  const [markingSold, setMarkingSold] = useState(false);
+  const [soldSuccess, setSoldSuccess] = useState(false);
 
   const handleConfirmTrade = async () => {
     if (!myId || !selectedOtherUserId || tradeSending) return;
@@ -178,6 +194,73 @@ export default function Mensajes() {
     () => conversations.find((c) => c.otherUserId === selectedOtherUserId) || null,
     [conversations, selectedOtherUserId]
   );
+
+  // IDs de productos mencionados en la conversación actual
+  const productIdsInConv = useMemo(() => {
+    const ids = currentMessages.map(m => m.product_id).filter(Boolean) as string[];
+    return [...new Set(ids)];
+  }, [currentMessages]);
+
+  // Cargar los productos de esa conversación que le pertenecen al usuario actual
+  useEffect(() => {
+    const loadMyProducts = async () => {
+      if (!myId || productIdsInConv.length === 0) {
+        setMyProductsInConv([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('products')
+        .select('id, title, category, status, image_url')
+        .in('id', productIdsInConv)
+        .eq('user_id', myId);
+      setMyProductsInConv((data || []) as ProductMini[]);
+    };
+    loadMyProducts();
+  }, [productIdsInConv.join(','), myId]);
+
+  // Productos activos (no vendidos aún) que el usuario puede marcar como vendidos
+  const activeMyProducts = useMemo(
+    () => myProductsInConv.filter(p => p.status === 'activo'),
+    [myProductsInConv]
+  );
+
+  const handleMarkAsSold = async () => {
+    if (!selectedProductToSell || !myId || !selectedOtherUserId || markingSold) return;
+    setMarkingSold(true);
+    try {
+      // 1. Actualizar status del producto a 'vendido'
+      const { error } = await supabase
+        .from('products')
+        .update({ status: 'vendido', updated_at: new Date().toISOString() })
+        .eq('id', selectedProductToSell.id)
+        .eq('user_id', myId);
+
+      if (error) throw error;
+
+      // 2. Enviar mensaje automático en el chat
+      await supabase.from('messages').insert({
+        sender_id: myId,
+        receiver_id: selectedOtherUserId,
+        content: `He marcado "${selectedProductToSell.title}" como vendido. ¡Gracias por concretar esta transacción! 🎉`,
+        subject: '🏷️ Artículo vendido',
+        product_id: selectedProductToSell.id,
+        read: false,
+      });
+
+      // 3. Actualizar estado local
+      setMyProductsInConv(prev =>
+        prev.map(p => p.id === selectedProductToSell.id ? { ...p, status: 'vendido' } : p)
+      );
+
+      setSoldSuccess(true);
+      setShowSoldModal(false);
+      setSelectedProductToSell(null);
+      setTimeout(() => setSoldSuccess(false), 5000);
+    } catch (e) {
+      console.error('Error al marcar como vendido:', e);
+    }
+    setMarkingSold(false);
+  };
 
   // ── Marcar como leídos ───────────────────────────────────────────────────
   useEffect(() => {
@@ -304,11 +387,23 @@ export default function Mensajes() {
                     </p>
                   </div>
 
-                  {conv.unread > 0 && (
-                    <span className="bg-emerald-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">
-                      {conv.unread}
-                    </span>
-                  )}
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    {conv.unread > 0 && (
+                      <span className="bg-emerald-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                        {conv.unread}
+                      </span>
+                    )}
+                    {/* Badge "Vendido" si el último mensaje es de venta */}
+                    {rows.some(m =>
+                      ((m.sender_id === myId && m.receiver_id === conv.otherUserId) ||
+                       (m.sender_id === conv.otherUserId && m.receiver_id === myId)) &&
+                      m.subject === '🏷️ Artículo vendido'
+                    ) && (
+                      <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                        <Tag className="w-2.5 h-2.5" /> Vendido
+                      </span>
+                    )}
+                  </div>
                 </button>
               ))
             )}
@@ -336,22 +431,46 @@ export default function Mensajes() {
                 )}
               </div>
 
-              {/* Botón Confirmar acuerdo */}
-              {tradeSuccess ? (
-                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-xl">
-                  <CheckCircle className="w-3.5 h-3.5" /> ¡Acuerdo registrado!
-                </div>
-              ) : (
-                <button
-                  onClick={handleConfirmTrade}
-                  disabled={tradeSending}
-                  title="Registrar un acuerdo comercial con este contacto"
-                  className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 flex-shrink-0"
-                >
-                  {tradeSending ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Handshake className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">Confirmar acuerdo</span>
-                </button>
-              )}
+              {/* Botones de acción */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Botón Marcar como vendido (solo para el dueño del producto) */}
+                {activeMyProducts.length > 0 && (
+                  soldSuccess ? (
+                    <div className="flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-xl">
+                      <Tag className="w-3.5 h-3.5" /> ¡Marcado como vendido!
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setSelectedProductToSell(activeMyProducts.length === 1 ? activeMyProducts[0] : null);
+                        setShowSoldModal(true);
+                      }}
+                      title="Marcar artículo como vendido"
+                      className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors"
+                    >
+                      <PackageCheck className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Artículo vendido</span>
+                    </button>
+                  )
+                )}
+
+                {/* Botón Confirmar acuerdo */}
+                {tradeSuccess ? (
+                  <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-xl">
+                    <CheckCircle className="w-3.5 h-3.5" /> ¡Acuerdo registrado!
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleConfirmTrade}
+                    disabled={tradeSending}
+                    title="Registrar un acuerdo comercial con este contacto"
+                    className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {tradeSending ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Handshake className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">Confirmar acuerdo</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Messages */}
@@ -366,6 +485,26 @@ export default function Mensajes() {
               ) : (
                 currentMessages.map((message) => {
                   const isOwn = message.sender_id === myId;
+                  const isSoldNotice = message.subject === '🏷️ Artículo vendido';
+
+                  // Mensaje especial de venta (centrado, estilo distintivo)
+                  if (isSoldNotice) {
+                    return (
+                      <div key={message.id} className="flex justify-center py-1">
+                        <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3 max-w-sm text-center shadow-sm">
+                          <p className="text-xs font-bold text-blue-600 mb-1 flex items-center justify-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5" />
+                            {message.subject}
+                          </p>
+                          <p className="text-sm text-blue-800 leading-relaxed">{message.content}</p>
+                          <p className="text-xs text-blue-400 mt-1.5">
+                            {new Date(message.created_at).toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-sm lg:max-w-md space-y-1`}>
@@ -433,6 +572,110 @@ export default function Mensajes() {
           </div>
         )}
       </div>
+
+      {/* ── Modal: Marcar como vendido ── */}
+      {showSoldModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                  <PackageCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">Marcar como vendido</h2>
+              </div>
+              <button
+                onClick={() => { setShowSoldModal(false); setSelectedProductToSell(null); }}
+                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Si hay múltiples productos activos, mostrar selector */}
+              {activeMyProducts.length > 1 && (
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    ¿Cuál artículo vendiste?
+                  </p>
+                  <div className="space-y-2">
+                    {activeMyProducts.map(product => (
+                      <button
+                        key={product.id}
+                        onClick={() => setSelectedProductToSell(product)}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                          selectedProductToSell?.id === product.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                      >
+                        {product.image_url ? (
+                          <img src={product.image_url} alt={product.title} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xl flex-shrink-0">♻️</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{product.title}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{product.category}</p>
+                        </div>
+                        {selectedProductToSell?.id === product.id && (
+                          <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Vista previa del producto seleccionado (cuando solo hay 1) */}
+              {activeMyProducts.length === 1 && selectedProductToSell && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  {selectedProductToSell.image_url ? (
+                    <img src={selectedProductToSell.image_url} alt={selectedProductToSell.title} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">♻️</div>
+                  )}
+                  <div>
+                    <p className="font-bold text-gray-900 dark:text-white">{selectedProductToSell.title}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{selectedProductToSell.category}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
+                <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                  <strong>¿Qué pasa al confirmar?</strong> La publicación se marcará como <strong>Vendida</strong> y dejará de aparecer en búsquedas y el mapa. Podrás verla en tu panel de publicaciones como vendida.
+                </p>
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => { setShowSoldModal(false); setSelectedProductToSell(null); }}
+                  className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleMarkAsSold}
+                  disabled={!selectedProductToSell || markingSold}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  {markingSold ? (
+                    <><Loader className="w-4 h-4 animate-spin" /> Guardando...</>
+                  ) : (
+                    <><PackageCheck className="w-4 h-4" /> Confirmar venta</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
