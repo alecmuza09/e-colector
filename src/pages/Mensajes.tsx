@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Send, Loader, MessageCircle, ArrowLeft, Handshake, CheckCircle, PackageCheck, X, Tag } from 'lucide-react';
+import { Search, Send, Loader, MessageCircle, ArrowLeft, Handshake, CheckCircle, PackageCheck, X, Tag, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { createReview, getReviewedProductIds } from '../services/reviews';
+import { StarRating } from '../components/StarRating';
 
 type UserMini = { full_name?: string | null; email?: string | null };
 
@@ -70,6 +72,17 @@ export default function Mensajes() {
   const [selectedProductToSell, setSelectedProductToSell] = useState<ProductMini | null>(null);
   const [markingSold, setMarkingSold] = useState(false);
   const [soldSuccess, setSoldSuccess] = useState(false);
+
+  // ── Calificar transacción ─────────────────────────────────────────────────
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [ratingError, setRatingError] = useState<string | null>(null);
+  const [ratingTargetUserId, setRatingTargetUserId] = useState<string | null>(null);
+  const [ratingProductId, setRatingProductId] = useState<string | null>(null);
+  const [ratingTargetName, setRatingTargetName] = useState('');
+  const [reviewedProductIds, setReviewedProductIds] = useState<Set<string>>(new Set());
 
   const handleConfirmTrade = async () => {
     if (!myId || !selectedOtherUserId || tradeSending) return;
@@ -201,6 +214,16 @@ export default function Mensajes() {
     return [...new Set(ids)];
   }, [currentMessages]);
 
+  // Cargar productos ya calificados en esta conversación
+  useEffect(() => {
+    const loadReviewed = async () => {
+      if (!myId || !selectedOtherUserId) { setReviewedProductIds(new Set()); return; }
+      const ids = await getReviewedProductIds(myId, selectedOtherUserId);
+      setReviewedProductIds(ids);
+    };
+    loadReviewed();
+  }, [myId, selectedOtherUserId]);
+
   // Cargar los productos de esa conversación que le pertenecen al usuario actual
   useEffect(() => {
     const loadMyProducts = async () => {
@@ -254,12 +277,57 @@ export default function Mensajes() {
 
       setSoldSuccess(true);
       setShowSoldModal(false);
+
+      // Abrir modal de calificación para que el vendedor califique al comprador
+      setRatingTargetUserId(selectedOtherUserId);
+      setRatingProductId(selectedProductToSell.id);
+      setRatingTargetName(currentConversation?.name || 'el comprador');
+      setRatingValue(0);
+      setRatingComment('');
+      setRatingError(null);
+      setShowRatingModal(true);
+
       setSelectedProductToSell(null);
       setTimeout(() => setSoldSuccess(false), 5000);
     } catch (e) {
       console.error('Error al marcar como vendido:', e);
     }
     setMarkingSold(false);
+  };
+
+  const handleOpenRatingForBuyer = (msg: MessageRow) => {
+    if (!selectedOtherUserId) return;
+    setRatingTargetUserId(msg.sender_id);
+    setRatingProductId(msg.product_id ?? null);
+    setRatingTargetName(currentConversation?.name || 'el vendedor');
+    setRatingValue(0);
+    setRatingComment('');
+    setRatingError(null);
+    setShowRatingModal(true);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!myId || !ratingTargetUserId || ratingValue === 0 || ratingLoading) return;
+    setRatingLoading(true);
+    setRatingError(null);
+    const result = await createReview({
+      reviewer_id: myId,
+      reviewed_user_id: ratingTargetUserId,
+      product_id: ratingProductId,
+      rating: ratingValue,
+      comment: ratingComment.trim() || null,
+    });
+    setRatingLoading(false);
+    if (!result.success) {
+      setRatingError(result.error || 'Error al guardar la calificación.');
+      return;
+    }
+    if (ratingProductId) {
+      setReviewedProductIds(prev => new Set([...prev, ratingProductId!]));
+    }
+    setShowRatingModal(false);
+    setRatingValue(0);
+    setRatingComment('');
   };
 
   // ── Marcar como leídos ───────────────────────────────────────────────────
@@ -489,6 +557,10 @@ export default function Mensajes() {
 
                   // Mensaje especial de venta (centrado, estilo distintivo)
                   if (isSoldNotice) {
+                    const canRate =
+                      message.sender_id !== myId &&
+                      message.product_id &&
+                      !reviewedProductIds.has(message.product_id);
                     return (
                       <div key={message.id} className="flex justify-center py-1">
                         <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3 max-w-sm text-center shadow-sm">
@@ -500,6 +572,20 @@ export default function Mensajes() {
                           <p className="text-xs text-blue-400 mt-1.5">
                             {new Date(message.created_at).toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
                           </p>
+                          {canRate && (
+                            <button
+                              onClick={() => handleOpenRatingForBuyer(message)}
+                              className="mt-2.5 flex items-center gap-1.5 mx-auto bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
+                            >
+                              <Star className="w-3.5 h-3.5 fill-white" />
+                              Calificar esta transacción
+                            </button>
+                          )}
+                          {message.sender_id !== myId && message.product_id && reviewedProductIds.has(message.product_id) && (
+                            <p className="mt-2 text-xs text-green-600 font-medium flex items-center justify-center gap-1">
+                              <CheckCircle className="w-3.5 h-3.5" /> Ya calificaste esta transacción
+                            </p>
+                          )}
                         </div>
                       </div>
                     );
@@ -669,6 +755,94 @@ export default function Mensajes() {
                     <><Loader className="w-4 h-4 animate-spin" /> Guardando...</>
                   ) : (
                     <><PackageCheck className="w-4 h-4" /> Confirmar venta</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Calificar transacción ── */}
+      {showRatingModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                  <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                    ¿Cómo fue la transacción?
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Califica tu experiencia con{' '}
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">{ratingTargetName}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowRatingModal(false); setRatingValue(0); setRatingComment(''); setRatingError(null); }}
+                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Selector de estrellas */}
+              <div className="flex flex-col items-center gap-3 py-2">
+                <StarRating value={ratingValue} onChange={setRatingValue} size="lg" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {ratingValue === 0 && 'Toca una estrella para calificar'}
+                  {ratingValue === 1 && '😞 Muy mala experiencia'}
+                  {ratingValue === 2 && '😕 Mala experiencia'}
+                  {ratingValue === 3 && '😐 Experiencia regular'}
+                  {ratingValue === 4 && '😊 Buena experiencia'}
+                  {ratingValue === 5 && '🌟 ¡Excelente experiencia!'}
+                </p>
+              </div>
+
+              {/* Comentario opcional */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Comentario <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <textarea
+                  value={ratingComment}
+                  onChange={e => setRatingComment(e.target.value)}
+                  placeholder="Cuéntanos cómo fue la transacción, puntualidad, estado del material, trato recibido..."
+                  rows={3}
+                  maxLength={500}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-sm resize-none bg-gray-50 dark:bg-gray-700 focus:bg-white dark:focus:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors text-gray-900 dark:text-white placeholder-gray-400"
+                />
+                <p className="text-xs text-gray-400 mt-1 text-right">{ratingComment.length}/500</p>
+              </div>
+
+              {ratingError && (
+                <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{ratingError}</p>
+              )}
+
+              {/* Botones */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => { setShowRatingModal(false); setRatingValue(0); setRatingComment(''); setRatingError(null); }}
+                  className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+                >
+                  Omitir por ahora
+                </button>
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={ratingValue === 0 || ratingLoading}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  {ratingLoading ? (
+                    <><Loader className="w-4 h-4 animate-spin" /> Publicando...</>
+                  ) : (
+                    <><Star className="w-4 h-4 fill-white" /> Publicar reseña</>
                   )}
                 </button>
               </div>

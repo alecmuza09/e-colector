@@ -4,6 +4,8 @@ import { MapPin, DollarSign, CheckCircle, AlertCircle, ArrowLeft, Loader, Messag
 import { Product } from '../data/mockProducts';
 import { getProductById } from '../services/products';
 import { isFavorite, addFavorite, removeFavorite } from '../services/favorites';
+import { getUserRating, UserRating } from '../services/reviews';
+import { StarRating } from '../components/StarRating';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -41,6 +43,7 @@ const ListingDetail = () => {
   const [offerTime, setOfferTime] = useState<string>('');
 
   const [owner, setOwner] = useState<{ id: string; full_name: string; email: string; city: string | null; is_verified: boolean } | null>(null);
+  const [ownerRating, setOwnerRating] = useState<UserRating>({ average: 0, count: 0 });
   const [offers, setOffers] = useState<OfferRow[]>([]);
   const [offersLoading, setOffersLoading] = useState(false);
   const [favorited, setFavorited] = useState(false);
@@ -67,14 +70,18 @@ const ListingDetail = () => {
   useEffect(() => {
     const loadOwner = async () => {
       if (!product?.userId) return;
-      const { data, error } = await supabase
-        .from('users')
-        .select('id,full_name,email,city,is_verified')
-        .eq('id', product.userId)
-        .single();
+      const [{ data, error }, ratingData] = await Promise.all([
+        supabase
+          .from('users')
+          .select('id,full_name,email,city,is_verified')
+          .eq('id', product.userId)
+          .single(),
+        getUserRating(product.userId),
+      ]);
       if (!error && data) {
         setOwner(data as any);
       }
+      setOwnerRating(ratingData);
     };
     loadOwner();
   }, [product?.userId]);
@@ -362,6 +369,11 @@ const ListingDetail = () => {
                     <div>
                       <p className="font-medium">{owner?.full_name || `Usuario de ${product.municipality}`}</p>
                       {owner?.city && <p className="text-sm text-gray-600">{owner.city}</p>}
+                      {ownerRating.count > 0 && (
+                        <div className="mt-1">
+                          <StarRating value={ownerRating.average} readonly size="xs" showValue count={ownerRating.count} />
+                        </div>
+                      )}
                       {product.createdAt && (
                         <p className="text-sm text-gray-500">Publicado el {new Date(product.createdAt).toLocaleString('es-MX')}</p>
                       )}

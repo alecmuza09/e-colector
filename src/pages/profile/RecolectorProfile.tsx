@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   MapPin, Truck, CheckCircle, ShieldCheck, MessageSquare,
-  Package, Loader, AlertCircle, Calendar, Layers
+  Package, Loader, AlertCircle, Calendar, Layers, Star
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getMyCollectorStocks } from '../../services/products';
 import { Product } from '../../data/mockProducts';
+import { getReviewsForUser, getUserRating, Review, UserRating } from '../../services/reviews';
+import { StarRating } from '../../components/StarRating';
 
 interface CollectorUser {
   id: string;
@@ -34,6 +36,8 @@ const RecolectorProfile = () => {
   const navigate = useNavigate();
   const [collector, setCollector] = useState<CollectorUser | null>(null);
   const [stocks, setStocks] = useState<Product[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [rating, setRating] = useState<UserRating>({ average: 0, count: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,8 +64,14 @@ const RecolectorProfile = () => {
       }
 
       setCollector(data as CollectorUser);
-      const stocksData = await getMyCollectorStocks(data.id);
+      const [stocksData, reviewsData, ratingData] = await Promise.all([
+        getMyCollectorStocks(data.id),
+        getReviewsForUser(data.id),
+        getUserRating(data.id),
+      ]);
       setStocks(stocksData);
+      setReviews(reviewsData);
+      setRating(ratingData);
     } catch {
       setError('Error al cargar el perfil.');
     } finally {
@@ -129,6 +139,11 @@ const RecolectorProfile = () => {
                 </span>
               )}
             </div>
+            {rating.count > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <StarRating value={rating.average} readonly size="sm" showValue count={rating.count} />
+              </div>
+            )}
           </div>
           <Link
             to="/mensajes"
@@ -233,6 +248,63 @@ const RecolectorProfile = () => {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Reseñas */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+          Reseñas ({rating.count})
+          {rating.count > 0 && (
+            <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">
+              · Promedio {rating.average.toFixed(1)} / 5
+            </span>
+          )}
+        </h2>
+
+        {reviews.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center">
+            <Star className="w-9 h-9 text-gray-200 dark:text-gray-600 mx-auto mb-2" />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Aún no tiene reseñas. ¡Sé el primero en calificarlo!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {reviews.map(rev => {
+              const initials = (rev.reviewer?.full_name || rev.reviewer?.email || '?')
+                .split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+              return (
+                <div
+                  key={rev.id}
+                  className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-bold text-sm flex-shrink-0">
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                          {rev.reviewer?.full_name || rev.reviewer?.email || 'Usuario'}
+                        </p>
+                        <StarRating value={rev.rating} readonly size="xs" />
+                        <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+                          {new Date(rev.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      {rev.comment && (
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1.5 leading-relaxed">
+                          {rev.comment}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

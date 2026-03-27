@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Package, ShoppingCart, CheckCircle, Heart, Clock, TrendingUp, Loader, ArrowRight } from 'lucide-react';
+import { Package, ShoppingCart, CheckCircle, Heart, Clock, TrendingUp, Loader, ArrowRight, Star } from 'lucide-react';
 import { getOffersByBuyer, OfferWithDetails } from '../../services/offers';
 import { getFavorites } from '../../services/favorites';
+import { getReviewsForUser, getUserRating, Review, UserRating } from '../../services/reviews';
+import { StarRating } from '../../components/StarRating';
 import { Product } from '../../data/mockProducts';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -24,18 +26,24 @@ const BuyerProfile = () => {
   const { userProfile } = useAuth();
   const [offers, setOffers] = useState<OfferWithDetails[]>([]);
   const [favorites, setFavorites] = useState<Product[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [rating, setRating] = useState<UserRating>({ average: 0, count: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userProfile?.id) return;
     const load = async () => {
       setLoading(true);
-      const [offersData, favsData] = await Promise.all([
+      const [offersData, favsData, reviewsData, ratingData] = await Promise.all([
         getOffersByBuyer(userProfile.id),
         getFavorites(userProfile.id),
+        getReviewsForUser(userProfile.id),
+        getUserRating(userProfile.id),
       ]);
       setOffers(offersData);
       setFavorites(favsData);
+      setReviews(reviewsData);
+      setRating(ratingData);
       setLoading(false);
     };
     load();
@@ -61,6 +69,11 @@ const BuyerProfile = () => {
               <span className="inline-flex items-center gap-1 mt-1 text-xs bg-white/20 px-2.5 py-0.5 rounded-full">
                 <CheckCircle className="w-3 h-3" /> Cuenta verificada
               </span>
+            )}
+            {rating.count > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <StarRating value={rating.average} readonly size="sm" showValue count={rating.count} />
+              </div>
             )}
           </div>
         </div>
@@ -223,6 +236,52 @@ const BuyerProfile = () => {
                     </div>
                   </Link>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Reseñas recibidas */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mt-6">
+            <h2 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+              Mis reseñas ({rating.count})
+              {rating.count > 0 && (
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">
+                  · Promedio {rating.average.toFixed(1)} / 5
+                </span>
+              )}
+            </h2>
+            {reviews.length === 0 ? (
+              <p className="text-gray-400 dark:text-gray-500 text-sm text-center py-6">
+                Aún no tienes reseñas. Completa transacciones para recibir calificaciones.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {reviews.slice(0, 5).map(rev => {
+                  const initials = (rev.reviewer?.full_name || rev.reviewer?.email || '?')
+                    .split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+                  return (
+                    <div key={rev.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-700 dark:text-blue-400 font-bold text-xs flex-shrink-0">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {rev.reviewer?.full_name || rev.reviewer?.email || 'Usuario'}
+                          </p>
+                          <StarRating value={rev.rating} readonly size="xs" />
+                          <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+                            {new Date(rev.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                        {rev.comment && (
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">{rev.comment}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
