@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -13,7 +12,25 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; error?: string }> {
+async function getReceiverEmail(userId: string): Promise<string | null> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=email&limit=1`,
+    {
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+    }
+  );
+  if (!res.ok) {
+    console.error('[getReceiverEmail] HTTP', res.status);
+    return null;
+  }
+  const rows = await res.json();
+  return rows?.[0]?.email ?? null;
+}
+
+async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; resendError?: string }> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -25,9 +42,9 @@ async function sendEmail(to: string, subject: string, html: string): Promise<{ o
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     console.error('[Resend] Error:', res.status, JSON.stringify(data));
-    return { ok: false, error: data?.message || `HTTP ${res.status}` };
+    return { ok: false, resendError: data?.message || `HTTP ${res.status}` };
   }
-  console.info('[Resend] Email enviado a', to, '| id:', data?.id);
+  console.info('[Resend] Enviado a', to, '| id:', data?.id);
   return { ok: true };
 }
 
@@ -56,7 +73,7 @@ function buildNewMessageEmail(senderName: string, messagePreview: string, appUrl
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
         <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">
           Recibiste este correo porque tienes una cuenta en e-colector.com.<br>
-          Puedes gestionar tus preferencias de notificación en tu perfil.
+          Puedes gestionar tus preferencias en tu perfil.
         </p>
       </div>
     </div>`;
@@ -114,26 +131,19 @@ serve(async (req) => {
     if (type === 'new_message') {
       const { receiver_id, sender_name, message_preview, app_url } = body;
 
-      const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const { data: userRow, error } = await adminClient
-        .from('users')
-        .select('email')
-        .eq('id', receiver_id)
-        .single();
-
-      if (error || !userRow?.email) {
-        console.error('[new_message] Receptor no encontrado para id:', receiver_id, error);
+      const receiverEmail = await getReceiverEmail(receiver_id);
+      if (!receiverEmail) {
+        console.error('[new_message] Receptor no encontrado para id:', receiver_id);
         return new Response(JSON.stringify({ error: 'Receiver not found' }), {
           status: 404,
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         });
       }
 
-      const receiverEmail = userRow.email;
       const html = buildNewMessageEmail(sender_name, message_preview, app_url || 'https://e-colector.com');
-      const { ok, error } = await sendEmail(receiverEmail, `📬 Nuevo mensaje de ${sender_name} — e-colector`, html);
+      const { ok, resendError } = await sendEmail(receiverEmail, `📬 Nuevo mensaje de ${sender_name} — e-colector`, html);
 
-      return new Response(JSON.stringify({ success: ok, error }), {
+      return new Response(JSON.stringify({ success: ok, error: resendError }), {
         status: ok ? 200 : 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
@@ -142,9 +152,9 @@ serve(async (req) => {
     if (type === 'contact_form') {
       const { from_name, from_email, subject, message } = body;
       const html = buildContactFormEmail(from_name, from_email, subject, message);
-      const { ok, error } = await sendEmail(ADMIN_EMAIL, `[Contacto] ${subject}`, html);
+      const { ok, resendError } = await sendEmail(ADMIN_EMAIL, `[Contacto] ${subject}`, html);
 
-      return new Response(JSON.stringify({ success: ok, error }), {
+      return new Response(JSON.stringify({ success: ok, error: resendError }), {
         status: ok ? 200 : 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
