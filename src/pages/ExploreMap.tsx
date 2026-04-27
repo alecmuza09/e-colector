@@ -39,6 +39,32 @@ const createCustomIcon = (color: string, emoji: string) => {
   });
 };
 
+// Pin especial para publicaciones de recolectores (forma de rombo + borde doble)
+const createCollectorIcon = (emoji: string) => {
+  const color = '#059669';
+  return L.divIcon({
+    html: `<div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="
+        background-color:${color};
+        width:46px;height:46px;
+        border-radius:8px;
+        transform:rotate(45deg);
+        display:flex;align-items:center;justify-content:center;
+        box-shadow:0 4px 14px rgba(5,150,105,0.5);
+        border:3px solid white;
+        outline:2px solid ${color};
+      ">
+        <span style="transform:rotate(-45deg);font-size:20px;display:block;">${emoji}</span>
+      </div>
+      <div style="width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:10px solid ${color};margin-top:-4px;"></div>
+    </div>`,
+    className: 'custom-leaflet-icon-collector',
+    iconSize: [46, 58],
+    iconAnchor: [23, 58],
+    popupAnchor: [0, -58],
+  });
+};
+
 // Componente para ajustar límites del mapa
 function ChangeView({ markers }: { markers: Product[] }) {
   const map = useMap();
@@ -142,6 +168,7 @@ const ExploreMapLeaflet = () => {
   const [loading, setLoading] = useState(true);
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
+  const [showOnlyCollectors, setShowOnlyCollectors] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Cargar productos desde Supabase
@@ -159,8 +186,18 @@ const ExploreMapLeaflet = () => {
   const filteredProducts = useMemo(() => {
     let results = products;
 
-    if (selectedCategory !== 'Todos') {
-      results = results.filter(p => p.category === selectedCategory);
+    if (showOnlyCollectors) {
+      results = results.filter(p => p.type === 'stock_recolector');
+    } else {
+      if (selectedCategory !== 'Todos') {
+        results = results.filter(p => p.category === selectedCategory);
+      }
+      if (minPrice !== '') {
+        results = results.filter(p => p.price >= Number(minPrice));
+      }
+      if (maxPrice !== '') {
+        results = results.filter(p => p.price <= Number(maxPrice));
+      }
     }
 
     if (searchTerm.trim()) {
@@ -173,15 +210,8 @@ const ExploreMapLeaflet = () => {
       );
     }
 
-    if (minPrice !== '') {
-      results = results.filter(p => p.price >= Number(minPrice));
-    }
-    if (maxPrice !== '') {
-      results = results.filter(p => p.price <= Number(maxPrice));
-    }
-
     return results;
-  }, [products, selectedCategory, searchTerm, minPrice, maxPrice]);
+  }, [products, selectedCategory, searchTerm, minPrice, maxPrice, showOnlyCollectors]);
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: currency }).format(price);
@@ -193,6 +223,7 @@ const ExploreMapLeaflet = () => {
     setActiveFilters(['Todos']);
     setMinPrice('');
     setMaxPrice('');
+    setShowOnlyCollectors(false);
     if (searchInputRef.current) {
       searchInputRef.current.value = '';
     }
@@ -267,18 +298,32 @@ const ExploreMapLeaflet = () => {
             </div>
           </div>
 
-          {/* Filtro de Tipo */}
+          {/* Filtro de Tipo / Recolectores */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tipo</label>
-            <div className="flex gap-2">
-              {(['venta', 'donacion'] as const).map(type => (
-                <button
-                  key={type}
-                  className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-sm font-medium transition-all hover:border-emerald-500 dark:hover:border-emerald-500 dark:text-white"
-                >
-                  {type === 'venta' ? '💰 Venta' : '🎁 Donación'}
-                </button>
-              ))}
+            <button
+              onClick={() => { setShowOnlyCollectors(v => !v); setSelectedCategory('Todos'); }}
+              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                showOnlyCollectors
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-emerald-500'
+              }`}
+            >
+              <span style={{display:'inline-block',width:18,height:18,background:showOnlyCollectors?'white':'#059669',borderRadius:4,transform:'rotate(45deg)',flexShrink:0}} />
+              <span>♻️ Solo Recolectores</span>
+            </button>
+          </div>
+
+          {/* Leyenda de pines */}
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Leyenda</p>
+            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+              <div style={{width:16,height:16,borderRadius:'50%',background:'#3B82F6',border:'2px solid white',boxShadow:'0 1px 4px rgba(0,0,0,0.2)',flexShrink:0}} />
+              Pin circular — Venta / Donación
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+              <div style={{width:16,height:16,borderRadius:3,background:'#059669',border:'2px solid white',transform:'rotate(45deg)',boxShadow:'0 1px 4px rgba(0,0,0,0.2)',flexShrink:0}} />
+              Pin rombo — Stock de Recolector
             </div>
           </div>
 
@@ -407,10 +452,14 @@ const ExploreMapLeaflet = () => {
             />
 
             {filteredProducts.map((product) => {
-              if (!categoryColors[product.category]) return null;
+              const isCollectorStock = product.type === 'stock_recolector';
+              const catInfo = categoryColors[product.category];
+              if (!catInfo && !isCollectorStock) return null;
 
-              const { color, emoji } = categoryColors[product.category];
-              const customIcon = createCustomIcon(color, emoji);
+              const { color, emoji } = catInfo || { color: '#059669', emoji: '♻️' };
+              const customIcon = isCollectorStock
+                ? createCollectorIcon(emoji)
+                : createCustomIcon(color, emoji);
 
               if (isNaN(product.latitude) || isNaN(product.longitude)) {
                 console.warn(`Posición inválida para producto ${product.id}`);
@@ -428,20 +477,27 @@ const ExploreMapLeaflet = () => {
                 >
                   <Popup minWidth={280}>
                     <div className="text-sm space-y-2">
+                      {isCollectorStock && (
+                        <div style={{background:'#ecfdf5',border:'1px solid #6ee7b7',borderRadius:6,padding:'4px 10px',display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{fontSize:14}}>♻️</span>
+                          <span style={{fontSize:11,fontWeight:700,color:'#047857'}}>Stock de Recolector</span>
+                        </div>
+                      )}
                       <img src={product.imageUrl} alt={product.title} className="w-full h-32 object-cover rounded" />
                       <div>
                         <h3 className="font-semibold text-base text-gray-900">{product.title}</h3>
                         <p className="text-xs text-gray-600 line-clamp-2">{product.description}</p>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-emerald-600 font-bold text-lg">{formatPrice(product.price, product.currency)}</span>
+                        {isCollectorStock
+                          ? <span className="text-emerald-700 font-bold text-sm">Disponible para recolección</span>
+                          : <span className="text-emerald-600 font-bold text-lg">{formatPrice(product.price, product.currency)}</span>
+                        }
                         {product.verified && <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verificado</span>}
                       </div>
                       <p className="text-gray-500 text-xs flex items-center gap-1"><MapPin className="w-3 h-3" /> {product.location}</p>
                       {product.address && (
-                        <p className="text-gray-500 text-xs">
-                          {product.address}
-                        </p>
+                        <p className="text-gray-500 text-xs">{product.address}</p>
                       )}
                       <Link to={`/listado/${product.id}`} className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors text-center block text-xs">
                         Ver detalles completos

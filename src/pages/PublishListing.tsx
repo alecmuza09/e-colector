@@ -20,7 +20,7 @@ interface ListingFormData {
   unit: 'kg' | 'Ton' | ''; // Nuevo campo para unidad
   municipality: string; // Municipio
   address: string; // Dirección específica
-  type: 'venta' | 'donacion' | ''; // Tipo de publicación
+  type: 'venta' | 'donacion' | 'stock_recolector' | ''; // Tipo de publicación
 }
 
 // Interfaz para los errores de validación
@@ -47,6 +47,8 @@ const PublishListing = () => {
   const { id: editingId } = useParams<{ id: string }>();
   const isEditing = Boolean(editingId);
   const { isAuthenticated, userProfile } = useAuth();
+  const isCollector = userProfile?.role === 'collector';
+
   const [formData, setFormData] = useState<ListingFormData>({
     title: '',
     category: '',
@@ -56,7 +58,7 @@ const PublishListing = () => {
     unit: '', // Inicializar nuevo campo
     municipality: '',
     address: '',
-    type: 'venta',
+    type: isCollector ? 'stock_recolector' : 'venta',
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -340,10 +342,15 @@ const PublishListing = () => {
       const primaryImage =
         finalImageUrls[0] || `https://placehold.co/400x300/cccccc/666666?text=${encodeURIComponent(formData.title)}`;
 
+      const resolvedType: 'venta' | 'donacion' | 'stock_recolector' =
+        formData.type === 'stock_recolector' ? 'stock_recolector'
+        : formData.type === 'donacion' ? 'donacion'
+        : 'venta';
+
       const payload = {
         title: combinedTitle,
         category: formData.category,
-        price: formData.type === 'venta' ? Number(formData.price) : 0,
+        price: resolvedType === 'venta' ? Number(formData.price) : 0,
         description: formData.description.trim(),
         quantity: Number(formData.quantity),
         unit: formData.unit as 'kg' | 'Ton',
@@ -352,10 +359,10 @@ const PublishListing = () => {
         address: formData.address.trim(),
         latitude: coords.latitude,
         longitude: coords.longitude,
-        tags: [formData.category.toLowerCase(), 'nuevo'],
+        tags: [formData.category.toLowerCase(), resolvedType === 'stock_recolector' ? 'recolector' : 'nuevo'],
         image_url: primaryImage,
         image_urls: finalImageUrls.length > 0 ? finalImageUrls : undefined,
-        type: formData.type as 'venta' | 'donacion',
+        type: resolvedType,
       };
 
       // Crear o actualizar en Supabase
@@ -479,13 +486,15 @@ const PublishListing = () => {
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-5">
         <div className="max-w-5xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            {isEditing ? <Pencil className="w-6 h-6 text-emerald-600" /> : <span className="text-2xl">📦</span>}
-            {isEditing ? 'Editar publicación' : 'Publicar nuevo material'}
+            {isEditing ? <Pencil className="w-6 h-6 text-emerald-600" /> : <span className="text-2xl">{isCollector ? '♻️' : '📦'}</span>}
+            {isEditing ? 'Editar publicación' : isCollector ? 'Publicar stock de recolección' : 'Publicar nuevo material'}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {isEditing
               ? 'Actualiza los datos de tu publicación.'
-              : 'Comparte el material que tienes disponible para venta o donación.'}
+              : isCollector
+                ? 'Publica el material que tienes disponible para recolectar o que ofreces como recolector.'
+                : 'Comparte el material que tienes disponible para venta o donación.'}
           </p>
         </div>
       </div>
@@ -549,25 +558,33 @@ const PublishListing = () => {
                   {/* Tipo */}
                   <div>
                     <label className={labelCls}>Tipo de publicación <span className="text-red-500">*</span></label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {([['venta', '💰', 'Venta', 'El comprador paga un precio acordado.'],
-                         ['donacion', '🎁', 'Donación', 'Entregas el material sin costo.']] as const).map(([val, emoji, label, desc]) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => setFormData(p => ({ ...p, type: val, price: val === 'donacion' ? '' : p.price }))}
-                          className={`p-3 rounded-xl border text-left transition-all
-                            ${formData.type === val
-                              ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 ring-1 ring-emerald-500'
-                              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-emerald-400'
-                            }`}
-                        >
-                          <div className="text-lg mb-0.5">{emoji}</div>
-                          <div className={`text-sm font-semibold ${formData.type === val ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>{label}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{desc}</div>
-                        </button>
-                      ))}
-                    </div>
+                    {isCollector ? (
+                      <div className="p-3 rounded-xl border bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 ring-1 ring-emerald-500">
+                        <div className="text-lg mb-0.5">♻️</div>
+                        <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Stock de recolector</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Material disponible que ofreces como recolector. Aparecerá en el mapa con un pin especial.</div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {([['venta', '💰', 'Venta', 'El comprador paga un precio acordado.'],
+                           ['donacion', '🎁', 'Donación', 'Entregas el material sin costo.']] as const).map(([val, emoji, label, desc]) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setFormData(p => ({ ...p, type: val, price: val === 'donacion' ? '' : p.price }))}
+                            className={`p-3 rounded-xl border text-left transition-all
+                              ${formData.type === val
+                                ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 ring-1 ring-emerald-500'
+                                : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-emerald-400'
+                              }`}
+                          >
+                            <div className="text-lg mb-0.5">{emoji}</div>
+                            <div className={`text-sm font-semibold ${formData.type === val ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>{label}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -577,6 +594,7 @@ const PublishListing = () => {
                 <h2 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-base">
                   <span className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full text-xs flex items-center justify-center font-bold">2</span>
                   Cantidad {formData.type === 'venta' && 'y precio'}
+                  {formData.type === 'stock_recolector' && <span className="text-xs font-normal text-gray-400 ml-1">(disponible para recolección)</span>}
                 </h2>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -597,7 +615,7 @@ const PublishListing = () => {
                   </div>
                 </div>
 
-                {formData.type === 'venta' && (
+                {formData.type === 'venta' && formData.type !== 'stock_recolector' && (
                   <div className="mt-4">
                     <label htmlFor="price" className={labelCls}>
                       Precio por unidad (MXN) <span className="text-red-500">*</span>
