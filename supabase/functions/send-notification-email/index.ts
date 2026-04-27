@@ -13,7 +13,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; error?: string }> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -22,7 +22,13 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
     },
     body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
   });
-  return res.ok;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error('[Resend] Error:', res.status, JSON.stringify(data));
+    return { ok: false, error: data?.message || `HTTP ${res.status}` };
+  }
+  console.info('[Resend] Email enviado a', to, '| id:', data?.id);
+  return { ok: true };
 }
 
 function buildNewMessageEmail(senderName: string, messagePreview: string, appUrl: string): string {
@@ -120,9 +126,9 @@ serve(async (req) => {
 
       const receiverEmail = userData.user.email;
       const html = buildNewMessageEmail(sender_name, message_preview, app_url || 'https://e-colector.com');
-      const ok = await sendEmail(receiverEmail, `📬 Nuevo mensaje de ${sender_name} — e-colector`, html);
+      const { ok, error } = await sendEmail(receiverEmail, `📬 Nuevo mensaje de ${sender_name} — e-colector`, html);
 
-      return new Response(JSON.stringify({ success: ok }), {
+      return new Response(JSON.stringify({ success: ok, error }), {
         status: ok ? 200 : 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
@@ -131,9 +137,9 @@ serve(async (req) => {
     if (type === 'contact_form') {
       const { from_name, from_email, subject, message } = body;
       const html = buildContactFormEmail(from_name, from_email, subject, message);
-      const ok = await sendEmail(ADMIN_EMAIL, `[Contacto] ${subject}`, html);
+      const { ok, error } = await sendEmail(ADMIN_EMAIL, `[Contacto] ${subject}`, html);
 
-      return new Response(JSON.stringify({ success: ok }), {
+      return new Response(JSON.stringify({ success: ok, error }), {
         status: ok ? 200 : 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
