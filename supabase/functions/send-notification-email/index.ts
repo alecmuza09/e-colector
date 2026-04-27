@@ -115,16 +115,21 @@ serve(async (req) => {
       const { receiver_id, sender_name, message_preview, app_url } = body;
 
       const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const { data: userData, error } = await adminClient.auth.admin.getUserById(receiver_id);
+      const { data: userRow, error } = await adminClient
+        .from('users')
+        .select('email')
+        .eq('id', receiver_id)
+        .single();
 
-      if (error || !userData?.user?.email) {
+      if (error || !userRow?.email) {
+        console.error('[new_message] Receptor no encontrado para id:', receiver_id, error);
         return new Response(JSON.stringify({ error: 'Receiver not found' }), {
           status: 404,
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         });
       }
 
-      const receiverEmail = userData.user.email;
+      const receiverEmail = userRow.email;
       const html = buildNewMessageEmail(sender_name, message_preview, app_url || 'https://e-colector.com');
       const { ok, error } = await sendEmail(receiverEmail, `📬 Nuevo mensaje de ${sender_name} — e-colector`, html);
 
