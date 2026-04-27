@@ -22,7 +22,12 @@ import {
   ArrowUpRight,
   ChevronLeft,
   ChevronRight,
+  Settings2,
+  Send,
+  KeyRound,
+  X,
 } from 'lucide-react';
+import { sendNewMessageEmail } from '../../services/email';
 import RewardRulesAdmin from '../../components/admin/RewardRulesAdmin';
 
 interface UserRow {
@@ -221,6 +226,15 @@ export default function AdminConsole() {
     phone_number: '', city: '', is_verified: false, email_confirm: true,
   });
 
+  // ── Modal gestión de usuario ──────────────────────────────────────────────
+  const [manageUser, setManageUser]       = useState<UserRow | null>(null);
+  const [manageForm, setManageForm]       = useState({ full_name: '', city: '', phone_number: '', role: 'buyer', is_verified: false });
+  const [manageSaving, setManageSaving]   = useState(false);
+  const [manageMsg, setManageMsg]         = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [directMsg, setDirectMsg]         = useState('');
+  const [sendingMsg, setSendingMsg]       = useState(false);
+  const [sendingReset, setSendingReset]   = useState(false);
+
   useEffect(() => {
     loadUsers();
     loadStatsAndRecent();
@@ -375,6 +389,79 @@ export default function AdminConsole() {
       setCreateError(e?.message || 'No se pudo crear el usuario (verifica Netlify Functions)');
     } finally {
       setCreatingUser(false);
+    }
+  };
+
+  const openManageUser = (user: UserRow) => {
+    setManageUser(user);
+    setManageForm({ full_name: user.full_name, city: user.city || '', phone_number: user.phone_number || '', role: user.role, is_verified: user.is_verified });
+    setManageMsg(null);
+    setDirectMsg('');
+  };
+
+  const handleSaveManage = async () => {
+    if (!manageUser) return;
+    setManageSaving(true);
+    setManageMsg(null);
+    try {
+      const { error } = await supabase.from('users').update({
+        full_name:    manageForm.full_name.trim(),
+        city:         manageForm.city.trim(),
+        phone_number: manageForm.phone_number.trim(),
+        role:         manageForm.role,
+        is_verified:  manageForm.is_verified,
+      }).eq('id', manageUser.id);
+      if (error) throw error;
+      setUsers((prev) => prev.map((u) => u.id === manageUser.id ? { ...u, ...manageForm } : u));
+      setManageMsg({ type: 'ok', text: 'Cambios guardados correctamente.' });
+    } catch (e: any) {
+      setManageMsg({ type: 'err', text: e?.message || 'Error al guardar.' });
+    } finally {
+      setManageSaving(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!manageUser) return;
+    setSendingReset(true);
+    setManageMsg(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(manageUser.email, {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      });
+      if (error) throw error;
+      setManageMsg({ type: 'ok', text: `Se envió un enlace de restablecimiento a ${manageUser.email}.` });
+    } catch (e: any) {
+      setManageMsg({ type: 'err', text: e?.message || 'Error al enviar el reset.' });
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
+  const handleSendDirectMessage = async () => {
+    if (!manageUser || !directMsg.trim() || !userProfile?.id) return;
+    setSendingMsg(true);
+    setManageMsg(null);
+    try {
+      const { error } = await supabase.from('messages').insert({
+        sender_id:   userProfile.id,
+        receiver_id: manageUser.id,
+        content:     directMsg.trim(),
+        subject:     '📢 Mensaje del administrador',
+        read:        false,
+      });
+      if (error) throw error;
+      sendNewMessageEmail({
+        receiver_id:     manageUser.id,
+        sender_name:     'Administrador e-colector',
+        message_preview: directMsg.trim(),
+      });
+      setDirectMsg('');
+      setManageMsg({ type: 'ok', text: 'Mensaje enviado correctamente.' });
+    } catch (e: any) {
+      setManageMsg({ type: 'err', text: e?.message || 'Error al enviar el mensaje.' });
+    } finally {
+      setSendingMsg(false);
     }
   };
 
@@ -686,7 +773,14 @@ export default function AdminConsole() {
                           </td>
                           <td className="px-5 py-3 text-gray-400 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString('es-MX')}</td>
                           <td className="px-5 py-3">
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => openManageUser(u)}
+                                title="Gestionar usuario"
+                                className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-colors"
+                              >
+                                <Settings2 className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={() => handleToggleVerification(u)}
                                 title={u.is_verified ? 'Quitar verificación' : 'Verificar'}
@@ -808,6 +902,174 @@ export default function AdminConsole() {
           </div>
         )}
       </div>
+
+      {/* ══════════════════════ MODAL GESTIONAR USUARIO ══════════════════════ */}
+      {manageUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-500">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${avatarColor(manageUser.role)} ring-2 ring-white/30`}>
+                  {initials(manageUser.full_name).toUpperCase() || '?'}
+                </div>
+                <div>
+                  <p className="font-bold text-white leading-tight">{manageUser.full_name}</p>
+                  <p className="text-indigo-200 text-xs">{manageUser.email}</p>
+                </div>
+              </div>
+              <button onClick={() => setManageUser(null)} className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {/* Alerta de feedback */}
+              {manageMsg && (
+                <div className={`mx-6 mt-4 px-4 py-3 rounded-xl text-sm font-medium border ${
+                  manageMsg.type === 'ok'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                }`}>
+                  {manageMsg.text}
+                </div>
+              )}
+
+              {/* ── Sección 1: Datos del perfil ── */}
+              <div className="px-6 pt-5 pb-4">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Datos del perfil</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
+                    <input
+                      value={manageForm.full_name}
+                      onChange={(e) => setManageForm((p) => ({ ...p, full_name: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                      <select
+                        value={manageForm.role}
+                        onChange={(e) => setManageForm((p) => ({ ...p, role: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                      >
+                        <option value="buyer">Comprador</option>
+                        <option value="seller">Vendedor</option>
+                        <option value="collector">Recolector</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
+                      <input
+                        value={manageForm.city}
+                        onChange={(e) => setManageForm((p) => ({ ...p, city: e.target.value }))}
+                        placeholder="Monterrey…"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                    <input
+                      value={manageForm.phone_number}
+                      onChange={(e) => setManageForm((p) => ({ ...p, phone_number: e.target.value }))}
+                      placeholder="+52 81…"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={manageForm.is_verified}
+                      onChange={(e) => setManageForm((p) => ({ ...p, is_verified: e.target.checked }))}
+                      className="w-4 h-4 accent-indigo-600 rounded"
+                    />
+                    Marcar cuenta como verificada
+                  </label>
+                </div>
+
+                <button
+                  onClick={handleSaveManage}
+                  disabled={manageSaving}
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  {manageSaving ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+              </div>
+
+              <div className="border-t border-gray-100 mx-6" />
+
+              {/* ── Sección 2: Restablecer contraseña ── */}
+              <div className="px-6 py-4">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Seguridad</h3>
+                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <KeyRound className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-800">Restablecer contraseña</p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Se enviará un enlace de restablecimiento al correo del usuario.
+                    </p>
+                    <button
+                      onClick={handlePasswordReset}
+                      disabled={sendingReset}
+                      className="mt-3 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      {sendingReset ? 'Enviando…' : 'Enviar enlace de reset'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 mx-6" />
+
+              {/* ── Sección 3: Mensaje directo ── */}
+              <div className="px-6 py-4">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Mensaje directo</h3>
+                <div className="flex items-start gap-3 p-4 bg-teal-50 border border-teal-200 rounded-xl">
+                  <MessageSquare className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-teal-800">Enviar mensaje al usuario</p>
+                    <p className="text-xs text-teal-600 mt-0.5">
+                      El mensaje llegará a su bandeja y recibirá notificación por email.
+                    </p>
+                    <textarea
+                      value={directMsg}
+                      onChange={(e) => setDirectMsg(e.target.value)}
+                      placeholder="Escribe aquí tu mensaje para el usuario…"
+                      rows={3}
+                      className="mt-3 w-full border border-teal-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-none"
+                    />
+                    <button
+                      onClick={handleSendDirectMessage}
+                      disabled={sendingMsg || !directMsg.trim()}
+                      className="mt-2 flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      {sendingMsg ? 'Enviando…' : 'Enviar mensaje'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setManageUser(null)}
+                className="px-5 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════ MODAL CREAR USUARIO ══════════════════════ */}
       {showCreateUser && (
