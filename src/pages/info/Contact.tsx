@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Loader, CheckCircle, Instagram } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { sendContactFormEmail } from '../../services/email';
 
 const Contact = () => {
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
@@ -37,7 +38,13 @@ const Contact = () => {
         });
       }
 
-      // También enviar por mailto como fallback
+      sendContactFormEmail({
+        from_name: formData.name,
+        from_email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+      });
+
       setIsSubmitted(true);
       setFormData({ name: '', email: '', subject: '', message: '' });
     } catch {

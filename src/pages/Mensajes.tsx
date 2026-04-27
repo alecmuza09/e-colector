@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { createReview, getReviewedProductIds } from '../services/reviews';
 import { StarRating } from '../components/StarRating';
+import { sendNewMessageEmail } from '../services/email';
 
 type UserMini = { full_name?: string | null; email?: string | null };
 
@@ -361,6 +362,12 @@ export default function Mensajes() {
     if (error) {
       console.error('Error enviando mensaje:', error);
       setMessageInput(content);
+    } else {
+      sendNewMessageEmail({
+        receiver_id: selectedOtherUserId,
+        sender_name: userProfile?.full_name || userProfile?.email || 'Un usuario',
+        message_preview: content,
+      });
     }
   };
 
