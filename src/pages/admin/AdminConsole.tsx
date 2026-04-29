@@ -26,6 +26,8 @@ import {
   Send,
   KeyRound,
   X,
+  AlertTriangle,
+  Loader,
 } from 'lucide-react';
 import { sendNewMessageEmail } from '../../services/email';
 import RewardRulesAdmin from '../../components/admin/RewardRulesAdmin';
@@ -226,6 +228,11 @@ export default function AdminConsole() {
     phone_number: '', city: '', is_verified: false, email_confirm: true,
   });
 
+  // ── Modal confirmación de eliminar ───────────────────────────────────────
+  const [deleteTarget, setDeleteTarget]   = useState<UserRow | null>(null);
+  const [deleting, setDeleting]           = useState(false);
+  const [deleteError, setDeleteError]     = useState<string | null>(null);
+
   // ── Modal gestión de usuario ──────────────────────────────────────────────
   const [manageUser, setManageUser]       = useState<UserRow | null>(null);
   const [manageForm, setManageForm]       = useState({ full_name: '', city: '', phone_number: '', role: 'buyer', is_verified: false });
@@ -347,14 +354,27 @@ export default function AdminConsole() {
     return json as T;
   };
 
-  const handleDeleteUser = async (user: UserRow) => {
-    if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
+  const handleDeleteUser = (user: UserRow) => {
+    setDeleteError(null);
+    setDeleteTarget(user);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
     try {
-      await adminFetch('/.netlify/functions/admin-delete-user', { user_id: user.id, auth_user_id: user.auth_user_id });
+      const { error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { user_id: deleteTarget.id, auth_user_id: deleteTarget.auth_user_id },
+      });
+      if (error) throw new Error(error.message || 'Error al eliminar usuario');
+      setDeleteTarget(null);
       await loadUsers();
       await loadStatsAndRecent();
     } catch (e: any) {
-      alert(e?.message || 'Error al eliminar usuario');
+      setDeleteError(e?.message || 'Error al eliminar usuario');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -902,6 +922,50 @@ export default function AdminConsole() {
           </div>
         )}
       </div>
+
+      {/* ══════════════════════ MODAL CONFIRMAR ELIMINACIÓN ══════════════════════ */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 flex flex-col items-center gap-3 text-center">
+              <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="w-7 h-7 text-red-600" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-800">¿Eliminar usuario?</h2>
+              <p className="text-sm text-gray-500">
+                Estás a punto de eliminar permanentemente a{' '}
+                <span className="font-semibold text-gray-700">{deleteTarget.full_name}</span> (
+                {deleteTarget.email}). Esta acción no se puede deshacer.
+              </p>
+              {deleteError && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 w-full text-left">
+                  {deleteError}
+                </p>
+              )}
+            </div>
+            <div className="px-6 pb-5 flex gap-3">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteError(null); }}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <><Loader className="w-4 h-4 animate-spin" /> Eliminando…</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Eliminar</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════ MODAL GESTIONAR USUARIO ══════════════════════ */}
       {manageUser && (
