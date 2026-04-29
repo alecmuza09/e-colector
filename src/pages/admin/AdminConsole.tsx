@@ -401,12 +401,13 @@ export default function AdminConsole() {
     if (!createForm.password.trim() || createForm.password.length < 8) return setCreateError('La contraseña debe tener al menos 8 caracteres.');
     setCreatingUser(true);
     try {
-      await adminFetch('/.netlify/functions/admin-create-user', createForm);
+      const { error } = await supabase.functions.invoke('admin-create-user', { body: createForm });
+      if (error) throw new Error(error.message || 'No se pudo crear el usuario');
       setShowCreateUser(false);
       await loadUsers();
       await loadStatsAndRecent();
     } catch (e: any) {
-      setCreateError(e?.message || 'No se pudo crear el usuario (verifica Netlify Functions)');
+      setCreateError(e?.message || 'No se pudo crear el usuario');
     } finally {
       setCreatingUser(false);
     }
@@ -1215,9 +1216,6 @@ export default function AdminConsole() {
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{createError}</div>
               )}
 
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm">
-                Para crear/eliminar usuarios en Auth necesitas Netlify Functions + variables de entorno.
-              </div>
             </div>
 
             <div className="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end">
