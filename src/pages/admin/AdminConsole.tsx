@@ -354,6 +354,26 @@ export default function AdminConsole() {
     return json as T;
   };
 
+  /** Llama una Edge Function y extrae el mensaje de error real si la respuesta es non-2xx */
+  const invokeEdgeFn = async <T = any>(name: string, body?: any): Promise<T> => {
+    const { data, error } = await supabase.functions.invoke<T>(name, { body: body ?? {} });
+    if (error) {
+      // FunctionsHttpError: el detalle está en el body de la Response
+      let msg = 'Error al llamar la función';
+      try {
+        const ctx = (error as any).context as Response | undefined;
+        if (ctx?.json) {
+          const parsed = await ctx.json();
+          msg = parsed?.error || parsed?.message || msg;
+        }
+      } catch { /* usa el msg genérico */ }
+      throw new Error(msg);
+    }
+    const d = data as any;
+    if (d && d.ok === false) throw new Error(d.error || 'Error desconocido');
+    return data as T;
+  };
+
   const handleDeleteUser = (user: UserRow) => {
     setDeleteError(null);
     setDeleteTarget(user);
@@ -364,10 +384,10 @@ export default function AdminConsole() {
     setDeleting(true);
     setDeleteError(null);
     try {
-      const { error } = await supabase.functions.invoke('admin-delete-user', {
-        body: { user_id: deleteTarget.id, auth_user_id: deleteTarget.auth_user_id },
+      await invokeEdgeFn('admin-delete-user', {
+        user_id: deleteTarget.id,
+        auth_user_id: deleteTarget.auth_user_id,
       });
-      if (error) throw new Error(error.message || 'Error al eliminar usuario');
       setDeleteTarget(null);
       await loadUsers();
       await loadStatsAndRecent();
@@ -401,8 +421,7 @@ export default function AdminConsole() {
     if (!createForm.password.trim() || createForm.password.length < 8) return setCreateError('La contraseña debe tener al menos 8 caracteres.');
     setCreatingUser(true);
     try {
-      const { error } = await supabase.functions.invoke('admin-create-user', { body: createForm });
-      if (error) throw new Error(error.message || 'No se pudo crear el usuario');
+      await invokeEdgeFn('admin-create-user', createForm);
       setShowCreateUser(false);
       await loadUsers();
       await loadStatsAndRecent();
