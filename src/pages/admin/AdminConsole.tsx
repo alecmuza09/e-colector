@@ -250,11 +250,22 @@ export default function AdminConsole() {
 
   const loadUsers = async () => {
     try {
-      const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      setUsers((data || []) as any);
-    } catch (error) {
-      console.error('Error loading users:', error);
+      // Usa Edge Function con service_role para saltarse RLS y ver TODOS los usuarios
+      const { data, error } = await supabase.functions.invoke('admin-list-users');
+      if (error) {
+        // Fallback: consulta directa (puede estar limitada por RLS)
+        console.warn('[admin] Edge Function admin-list-users no disponible, usando fallback:', error.message);
+        const { data: fallback, error: fbErr } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (fbErr) throw fbErr;
+        setUsers((fallback || []) as any);
+      } else {
+        setUsers(((data as any)?.users || []) as any);
+      }
+    } catch (err) {
+      console.error('Error loading users:', err);
     } finally {
       setLoading(false);
     }
