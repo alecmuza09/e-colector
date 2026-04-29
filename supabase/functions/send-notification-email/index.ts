@@ -119,6 +119,48 @@ function buildContactFormEmail(name: string, email: string, subject: string, mes
     </div>`;
 }
 
+function buildNearbyMaterialEmail(
+  receiverName: string, title: string, address: string, category: string,
+  publisherName: string, productId: string, distanceKm: number, appUrl: string
+): string {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+      <div style="background:#7c3aed;padding:24px 32px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">♻️ e-colector</h1>
+        <p style="color:#ddd6fe;margin:4px 0 0;font-size:14px;">Hay material cerca de ti</p>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#111827;margin-top:0;font-size:18px;">📍 Nuevo material a ${distanceKm} km de tu zona</h2>
+        <p style="color:#6b7280;font-size:15px;line-height:1.6;">
+          Hola <strong style="color:#111827;">${receiverName}</strong>, se acaba de publicar material reciclable
+          dentro de tu radio de notificación:
+        </p>
+        <div style="background:white;border:1px solid #e5e7eb;border-left:4px solid #7c3aed;border-radius:8px;padding:16px 20px;margin:20px 0;">
+          <p style="margin:0 0 8px;font-weight:700;font-size:16px;color:#111827;">${title}</p>
+          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">📦 Categoría: <strong>${category}</strong></p>
+          <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">👤 Publicado por: <strong>${publisherName}</strong></p>
+          ${address ? `<p style="margin:0;font-size:13px;color:#6b7280;">📍 Dirección: ${address}</p>` : ''}
+        </div>
+        <div style="background:#f3f0ff;border-radius:10px;padding:12px 16px;margin-bottom:24px;text-align:center;">
+          <span style="font-size:24px;">🚗</span>
+          <p style="margin:4px 0 0;font-weight:700;font-size:18px;color:#7c3aed;">${distanceKm} km de distancia</p>
+          <p style="margin:2px 0 0;font-size:12px;color:#9ca3af;">Estimado desde tu punto de búsqueda registrado</p>
+        </div>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${appUrl}/listado/${productId}"
+             style="display:inline-block;background:#7c3aed;color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
+            Ver publicación →
+          </a>
+        </div>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+        <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">
+          Recibiste este correo porque tienes notificaciones de proximidad activadas.<br>
+          Puedes desactivarlas en tu perfil de recolector en e-colector.com.
+        </p>
+      </div>
+    </div>`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
@@ -154,6 +196,22 @@ serve(async (req) => {
       const html = buildContactFormEmail(from_name, from_email, subject, message);
       const { ok, resendError } = await sendEmail(ADMIN_EMAIL, `[Contacto] ${subject}`, html);
 
+      return new Response(JSON.stringify({ success: ok, error: resendError }), {
+        status: ok ? 200 : 500,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (type === 'nearby_material') {
+      const { to_email, receiver_name, product_title, product_address, product_category, publisher_name, product_id, distance_km, app_url } = body;
+      if (!to_email) {
+        return new Response(JSON.stringify({ error: 'to_email requerido' }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+        });
+      }
+      const html = buildNearbyMaterialEmail(receiver_name, product_title, product_address, product_category, publisher_name, product_id, distance_km, app_url || 'https://e-colector.com');
+      const { ok, resendError } = await sendEmail(to_email, `♻️ Nuevo material cerca de ti: ${product_title}`, html);
       return new Response(JSON.stringify({ success: ok, error: resendError }), {
         status: ok ? 200 : 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },

@@ -41,3 +41,28 @@ export async function sendContactFormEmail(options: ContactFormEmailOptions): Pr
     console.error('[email] Error enviando email de contacto:', err);
   }
 }
+
+export interface NearbyMaterialEmailOptions {
+  to_email: string;
+  receiver_name: string;
+  product_title: string;
+  product_address: string;
+  product_category: string;
+  publisher_name: string;
+  product_id: string;
+  distance_km: number;
+}
+
+export async function sendNearbyMaterialEmail(options: NearbyMaterialEmailOptions): Promise<void> {
+  try {
+    await supabase.functions.invoke('send-notification-email', {
+      body: {
+        type: 'nearby_material',
+        app_url: APP_URL,
+        ...options,
+      },
+    });
+  } catch (err) {
+    console.error('[email] Error enviando notificación de material cercano:', err);
+  }
+}

@@ -9,6 +9,7 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabase';
+import { notifyNearbyCollectors } from '../services/collectors';
 
 // Interfaz simplificada para los datos del formulario
 interface ListingFormData {
@@ -423,6 +424,19 @@ const PublishListing = () => {
         }
       } catch (notifyErr) {
         console.warn('No se pudieron enviar notificaciones:', notifyErr);
+      }
+
+      // Notificar a recolectores con radio configurado (fire-and-forget)
+      if (!isEditing && newProduct?.id && coords.latitude && coords.longitude) {
+        notifyNearbyCollectors({
+          productLat: coords.latitude,
+          productLng: coords.longitude,
+          productTitle: payload.title,
+          productAddress: payload.address,
+          productCategory: payload.category,
+          publisherName: userProfile?.full_name || 'Un usuario',
+          productId: newProduct.id,
+        });
       }
 
       setSubmissionStatus('success');
