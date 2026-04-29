@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Package, ShoppingCart, CheckCircle, Heart, Clock, TrendingUp, Loader, ArrowRight, Star } from 'lucide-react';
+import { Package, ShoppingCart, CheckCircle, Heart, Clock, TrendingUp, Loader, ArrowRight, Star, Pencil, X, Save } from 'lucide-react';
 import { getOffersByBuyer, OfferWithDetails } from '../../services/offers';
 import { getFavorites } from '../../services/favorites';
 import { getReviewsForUser, getUserRating, Review, UserRating } from '../../services/reviews';
 import { StarRating } from '../../components/StarRating';
 import { Product } from '../../data/mockProducts';
+import { useProfileUpdate, toggleChip, MATERIAL_CHIPS } from '../../hooks/useProfileUpdate';
 
 const STATUS_LABELS: Record<string, string> = {
   pendiente: 'Pendiente',
@@ -22,13 +23,41 @@ const STATUS_STYLES: Record<string, string> = {
   cancelada: 'bg-gray-100 text-gray-500',
 };
 
+const inputCls = 'w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
+
+const ChipSelector: React.FC<{ options: string[]; selected: string[]; onChange: (v: string[]) => void }> = ({ options, selected, onChange }) => (
+  <div className="flex flex-wrap gap-1.5 mt-1">
+    {options.map((opt) => {
+      const active = selected.includes(opt);
+      return (
+        <button key={opt} type="button" onClick={() => onChange(toggleChip(selected, opt))}
+          className={`px-3 py-1 rounded-full text-xs font-medium border transition ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-700'}`}>
+          {opt}
+        </button>
+      );
+    })}
+  </div>
+);
+
 const BuyerProfile = () => {
   const { userProfile } = useAuth();
+  const { save } = useProfileUpdate();
   const [offers, setOffers] = useState<OfferWithDetails[]>([]);
   const [favorites, setFavorites] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState<UserRating>({ average: 0, count: 0 });
   const [loading, setLoading] = useState(true);
+
+  // Edit state
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [infoForm, setInfoForm] = useState({ full_name: '', phone_number: '', city: '' });
+  const [infoSaving, setInfoSaving] = useState(false);
+  const [infoMsg, setInfoMsg] = useState<any>(null);
+
+  const [editingPrefs, setEditingPrefs] = useState(false);
+  const [prefsForm, setPrefsForm] = useState({ materialCategoriesOfInterest: [] as string[], purchaseVolumePreference: '' });
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsMsg, setPrefsMsg] = useState<any>(null);
 
   useEffect(() => {
     if (!userProfile?.id) return;
@@ -48,6 +77,32 @@ const BuyerProfile = () => {
     };
     load();
   }, [userProfile?.id]);
+
+  useEffect(() => {
+    if (!userProfile) return;
+    setInfoForm({ full_name: userProfile.full_name || '', phone_number: userProfile.phone_number || '', city: userProfile.city || '' });
+    const pd = userProfile.profile_data || {};
+    setPrefsForm({
+      materialCategoriesOfInterest: pd.materialCategoriesOfInterest || pd.materialesInteres || [],
+      purchaseVolumePreference: pd.purchaseVolumePreference || '',
+    });
+  }, [userProfile?.id]);
+
+  const saveInfo = async () => {
+    setInfoSaving(true);
+    await save({ full_name: infoForm.full_name, phone_number: infoForm.phone_number, city: infoForm.city });
+    setInfoSaving(false); setEditingInfo(false);
+    setInfoMsg({ type: 'ok', text: 'Información actualizada.' });
+    setTimeout(() => setInfoMsg(null), 3000);
+  };
+
+  const savePrefs = async () => {
+    setPrefsSaving(true);
+    await save(undefined, { materialCategoriesOfInterest: prefsForm.materialCategoriesOfInterest, purchaseVolumePreference: prefsForm.purchaseVolumePreference });
+    setPrefsSaving(false); setEditingPrefs(false);
+    setPrefsMsg({ type: 'ok', text: 'Preferencias actualizadas.' });
+    setTimeout(() => setPrefsMsg(null), 3000);
+  };
 
   const totalOffers = offers.length;
   const acceptedOffers = offers.filter(o => o.status === 'aceptada').length;
@@ -108,53 +163,77 @@ const BuyerProfile = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {/* Información personal */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Package className="w-4 h-4 text-blue-500" />
-                Información
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-gray-900 dark:text-white flex items-center gap-2"><Package className="w-4 h-4 text-blue-500" />Información</h2>
+                {!editingInfo
+                  ? <button onClick={() => setEditingInfo(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"><Pencil className="w-3.5 h-3.5" />Editar</button>
+                  : <button onClick={() => setEditingInfo(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                }
+              </div>
               <div className="space-y-3 text-sm">
                 <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs">Email</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{userProfile?.email || 'N/A'}</p>
+                  <p className="text-gray-500 text-xs mb-1">Nombre</p>
+                  {editingInfo ? <input value={infoForm.full_name} onChange={(e) => setInfoForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /> : <p className="font-medium">{infoForm.full_name || '—'}</p>}
+                </div>
+                <div><p className="text-gray-500 text-xs">Email</p><p className="font-medium">{userProfile?.email || '—'}</p></div>
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Teléfono</p>
+                  {editingInfo ? <input value={infoForm.phone_number} onChange={(e) => setInfoForm((f) => ({ ...f, phone_number: e.target.value }))} className={inputCls} placeholder="Ej: 81 1234 5678" /> : <p className="font-medium">{infoForm.phone_number || <span className="text-gray-400 italic text-xs">No proporcionado</span>}</p>}
                 </div>
                 <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs">Teléfono</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{userProfile?.phone_number || 'No proporcionado'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs">Ciudad</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{userProfile?.city || 'No especificada'}</p>
+                  <p className="text-gray-500 text-xs mb-1">Ciudad</p>
+                  {editingInfo ? <input value={infoForm.city} onChange={(e) => setInfoForm((f) => ({ ...f, city: e.target.value }))} className={inputCls} /> : <p className="font-medium">{infoForm.city || <span className="text-gray-400 italic text-xs">No especificada</span>}</p>}
                 </div>
               </div>
+              {editingInfo && (
+                <div className="mt-4 flex gap-2">
+                  <button onClick={() => setEditingInfo(false)} disabled={infoSaving} className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50">Cancelar</button>
+                  <button onClick={saveInfo} disabled={infoSaving} className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-1.5">
+                    {infoSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Guardar
+                  </button>
+                </div>
+              )}
+              {!editingInfo && infoMsg && <p className="mt-2 text-xs text-green-600 bg-green-50 rounded-xl px-3 py-2">{infoMsg.text}</p>}
             </div>
 
             {/* Preferencias de compra */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-blue-500" />
-                Preferencias
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-gray-900 dark:text-white flex items-center gap-2"><TrendingUp className="w-4 h-4 text-blue-500" />Preferencias</h2>
+                {!editingPrefs
+                  ? <button onClick={() => setEditingPrefs(true)} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"><Pencil className="w-3.5 h-3.5" />Editar</button>
+                  : <button onClick={() => setEditingPrefs(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                }
+              </div>
               <div className="space-y-3 text-sm">
                 <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs mb-1.5">Categorías de interés</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {userProfile?.profile_data?.materialCategoriesOfInterest?.length > 0
-                      ? userProfile.profile_data.materialCategoriesOfInterest.map((cat: string, i: number) => (
-                        <span key={i} className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full text-xs">
-                          {cat}
-                        </span>
-                      ))
-                      : <p className="text-gray-400 dark:text-gray-500 text-xs">No especificadas</p>
-                    }
-                  </div>
+                  <p className="text-gray-500 text-xs mb-1">Categorías de interés</p>
+                  {editingPrefs ? (
+                    <ChipSelector options={MATERIAL_CHIPS} selected={prefsForm.materialCategoriesOfInterest} onChange={(v) => setPrefsForm((f) => ({ ...f, materialCategoriesOfInterest: v }))} />
+                  ) : prefsForm.materialCategoriesOfInterest.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">{prefsForm.materialCategoriesOfInterest.map((c, i) => <span key={i} className="bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full text-xs">{c}</span>)}</div>
+                  ) : <span className="text-gray-400 text-xs italic">No especificadas</span>}
                 </div>
                 <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs">Volumen preferido</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {userProfile?.profile_data?.purchaseVolumePreference === 'bulk' ? 'Granel' : 'Pequeñas cantidades'}
-                  </p>
+                  <p className="text-gray-500 text-xs mb-1">Volumen de compra</p>
+                  {editingPrefs ? (
+                    <select value={prefsForm.purchaseVolumePreference} onChange={(e) => setPrefsForm((f) => ({ ...f, purchaseVolumePreference: e.target.value }))} className={inputCls}>
+                      <option value="">Seleccionar…</option>
+                      <option value="bulk">Granel (grandes cantidades)</option>
+                      <option value="small">Pequeñas cantidades</option>
+                    </select>
+                  ) : <p className="font-medium">{prefsForm.purchaseVolumePreference === 'bulk' ? 'Granel' : prefsForm.purchaseVolumePreference === 'small' ? 'Pequeñas cantidades' : <span className="text-gray-400 italic text-xs">No especificado</span>}</p>}
                 </div>
               </div>
+              {editingPrefs && (
+                <div className="mt-4 flex gap-2">
+                  <button onClick={() => setEditingPrefs(false)} disabled={prefsSaving} className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50">Cancelar</button>
+                  <button onClick={savePrefs} disabled={prefsSaving} className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 flex items-center justify-center gap-1.5">
+                    {prefsSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Guardar
+                  </button>
+                </div>
+              )}
+              {!editingPrefs && prefsMsg && <p className="mt-2 text-xs text-green-600 bg-green-50 rounded-xl px-3 py-2">{prefsMsg.text}</p>}
             </div>
           </div>
 
