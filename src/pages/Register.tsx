@@ -4,7 +4,7 @@ import { Eye, EyeOff, User, Mail, Phone, MapPin, Lock, ChevronLeft, CheckCircle2
 import RoleSelection from '../components/auth/RoleSelection';
 import { UserRole } from '../types/user';
 import { useAuth } from '../context/AuthContext';
-import { MUNICIPALITY_NAMES, getColoniasForMunicipality } from '../config/municipalities';
+import { MunicipalityAddressFields } from '../components/location/MunicipalityAddressFields';
 import { supabase } from '../lib/supabase';
 import { sendWelcomeRegistrationEmail } from '../services/email';
 
@@ -236,6 +236,12 @@ const VendedorFields: React.FC<FieldProps> = ({ formData, handleChange, handleCh
 
 const RecolectorFields: React.FC<FieldProps> = ({ formData, handleChange, handleCheckboxChange }) => (
   <div className="space-y-5">
+    <div className="rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm text-teal-900 leading-relaxed">
+      <span className="font-semibold">📍 Zona de operación</span>
+      <p className="mt-1 text-xs text-teal-800">
+        La ubicación de tu operación es la misma que indicaste en <strong>Información básica</strong> (municipio + dirección con autocompletado), igual que cuando publicas material. No hace falta volver a escribirla aquí.
+      </p>
+    </div>
     <Select name="tipoRecolector" label="¿Eres...?" id="tipoRecolector"
       value={formData.tipoRecolector || ''} onChange={handleChange}
       options={['Recolector independiente', 'Centro de acopio', 'Empresa recicladora / Transformadora', 'Cooperativa o agrupación']} />
@@ -253,8 +259,6 @@ const RecolectorFields: React.FC<FieldProps> = ({ formData, handleChange, handle
       selected={formData.materialesManejados || []}
       onChange={handleCheckboxChange}
     />
-    <Input id="zonasOperacion" name="zonasOperacion" label="Zonas de operación" icon={<MapPin size={16}/>}
-      value={formData.zonasOperacion || ''} onChange={handleChange} placeholder="Ej: Guadalupe, San Pedro" />
     <Select name="frecuenciaServicio" label="Frecuencia de servicio" id="frecuenciaServicio"
       value={formData.frecuenciaServicio || ''} onChange={handleChange}
       options={['Bajo demanda', 'Semanal', 'Programada con agenda']} />
@@ -340,8 +344,8 @@ function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [municipality, setMunicipality] = useState('');
-  const [colonia, setColonia] = useState('');
+  const [locationMunicipality, setLocationMunicipality] = useState('');
+  const [locationAddress, setLocationAddress] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -386,9 +390,25 @@ function Register() {
     if (password.length < 8) return setError('La contraseña debe tener al menos 8 caracteres.');
 
     setLoading(true);
-    const cityLabel = municipality && colonia ? `${municipality}, ${colonia}` : '';
+    const cityLabel =
+      locationMunicipality && locationAddress.trim()
+        ? `${locationMunicipality} · ${locationAddress.trim()}`
+        : '';
+
+    const additionalPayload =
+      selectedRole === UserRole.COLLECTOR
+        ? { ...additionalData, zonasOperacion: cityLabel }
+        : additionalData;
+
     const { error: signUpError } = await signUp(email, password, {
-      name, email, password, role: selectedRole, phone, city: cityLabel, termsAccepted, additionalData,
+      name,
+      email,
+      password,
+      role: selectedRole,
+      phone,
+      city: cityLabel,
+      termsAccepted,
+      additionalData: additionalPayload,
     });
 
     const fireWelcome = () => {
@@ -443,8 +463,16 @@ function Register() {
   }
 
   const roleInfo = roleLabels[selectedRole];
-  const coloniasOptions = municipality ? getColoniasForMunicipality(municipality) : [];
-  const isFormValid = !loading && password === confirmPassword && termsAccepted && name && email && phone && municipality && colonia && password.length >= 8;
+  const isFormValid =
+    !loading &&
+    password === confirmPassword &&
+    termsAccepted &&
+    name &&
+    email &&
+    phone &&
+    locationMunicipality &&
+    locationAddress.trim().length >= 5 &&
+    password.length >= 8;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex flex-col">
@@ -454,7 +482,11 @@ function Register() {
           <img src="/assets/images/logo-transparent.png" alt="e-colector" className="h-8 object-contain" />
         </Link>
         <button
-          onClick={() => setSelectedRole(null)}
+          onClick={() => {
+            setSelectedRole(null);
+            setLocationMunicipality('');
+            setLocationAddress('');
+          }}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
         >
           <ChevronLeft size={16} />
@@ -503,35 +535,12 @@ function Register() {
                     value={phone} onChange={e => setPhone(e.target.value)}
                     placeholder="Ej: 81 1234 5678"
                   />
-                  <Select
-                    id="registration-municipality"
-                    label="Municipio"
-                    value={municipality}
-                    onChange={(e) => {
-                      setMunicipality(e.target.value);
-                      setColonia('');
-                    }}
-                    options={MUNICIPALITY_NAMES}
+                  <MunicipalityAddressFields
+                    municipality={locationMunicipality}
+                    address={locationAddress}
+                    onMunicipalityChange={setLocationMunicipality}
+                    onAddressChange={setLocationAddress}
                   />
-                  <Select
-                    id="registration-colonia"
-                    label="Colonia / Zona"
-                    value={colonia}
-                    onChange={(e) => setColonia(e.target.value)}
-                    options={coloniasOptions}
-                    disabled={!municipality || coloniasOptions.length === 0}
-                  />
-                  {!municipality ? (
-                    <p className="sm:col-span-2 text-xs text-gray-500 flex items-start gap-1.5">
-                      <MapPin size={14} className="mt-0.5 shrink-0 text-emerald-600" />
-                      Primero elige el municipio; luego la colonia o zona (misma lista que al publicar material).
-                    </p>
-                  ) : (
-                    <p className="sm:col-span-2 text-xs text-gray-500 flex items-start gap-1.5">
-                      <MapPin size={14} className="mt-0.5 shrink-0 text-emerald-600" />
-                      Usamos las mismas zonas del Área Metropolitana que en &quot;Publicar&quot;. Si necesitas más detalle de dirección, podrás completarlo en tu perfil o al crear una publicación.
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
