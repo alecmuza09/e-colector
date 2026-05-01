@@ -127,6 +127,41 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function buildAccountVerifiedEmail(fullName: string, appUrl: string): string {
+  const name = escapeHtml(fullName || 'Usuario');
+  const base = appUrl.replace(/\/$/, '');
+  const dashboardHref = `${base}/dashboard`;
+  const loginHref = `${base}/login`;
+
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+      <div style="background:#059669;padding:24px 32px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">♻️ e-colector</h1>
+        <p style="color:#a7f3d0;margin:4px 0 0;font-size:14px;">Cuenta verificada</p>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#111827;margin-top:0;font-size:18px;">¡Tu cuenta ha sido verificada, ${name}!</h2>
+        <p style="color:#6b7280;font-size:15px;line-height:1.6;">
+          El equipo de e-colector confirmó tu perfil. Ya puedes usar la plataforma con todas las funciones disponibles para tu tipo de cuenta (publicar, ofertar, mensajes, etc., según aplique).
+        </p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${dashboardHref}"
+             style="display:inline-block;background:#059669;color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
+            Ir a mi panel →
+          </a>
+        </div>
+        <p style="color:#9ca3af;font-size:13px;line-height:1.6;text-align:center;margin:0;">
+          Si no has iniciado sesión recientemente:<br>
+          <a href="${loginHref}" style="color:#059669;">${escapeHtml(loginHref)}</a>
+        </p>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0;">
+        <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">
+          Recibiste este correo porque tu cuenta fue verificada por un administrador en app.e-colector.com.
+        </p>
+      </div>
+    </div>`;
+}
+
 function buildWelcomeRegistrationEmail(fullName: string, loginEmail: string, appUrl: string): string {
   const name = escapeHtml(fullName || 'Usuario');
   const mail = escapeHtml(loginEmail);
@@ -245,6 +280,27 @@ serve(async (req) => {
       const html = buildContactFormEmail(from_name, from_email, subject, message);
       const { ok, resendError } = await sendEmail(ADMIN_EMAIL, `[Contacto] ${subject}`, html);
 
+      return new Response(JSON.stringify({ success: ok, error: resendError }), {
+        status: ok ? 200 : 500,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (type === 'account_verified') {
+      const { to_email, full_name, app_url } = body;
+      if (!to_email || typeof to_email !== 'string') {
+        return new Response(JSON.stringify({ error: 'to_email requerido' }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+        });
+      }
+      const appUrl = typeof app_url === 'string' && app_url.trim() ? app_url.trim() : 'https://app.e-colector.com';
+      const html = buildAccountVerifiedEmail(full_name || '', appUrl);
+      const { ok, resendError } = await sendEmail(
+        to_email.trim(),
+        '✅ Tu cuenta en e-colector ha sido verificada',
+        html
+      );
       return new Response(JSON.stringify({ success: ok, error: resendError }), {
         status: ok ? 200 : 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },

@@ -14,6 +14,49 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
 
+/** Envía correo vía misma Edge Function que el resto de notificaciones (Resend). */
+async function sendAccountVerifiedEmail(userId: string): Promise<void> {
+  const invokeKey = Deno.env.get('SUPABASE_ANON_KEY') ?? SERVICE_ROLE_KEY;
+
+  const rowRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(userId)}&select=email,full_name&limit=1`,
+    { headers: { apikey: SERVICE_ROLE_KEY, Authorization: `Bearer ${SERVICE_ROLE_KEY}` } }
+  );
+  const rows = await rowRes.json().catch(() => []);
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row?.email || typeof row.email !== 'string') {
+    console.warn('[admin-set-verification] sin email para usuario', userId);
+    return;
+  }
+
+  const appUrl =
+    Deno.env.get('PUBLIC_SITE_URL')?.trim() ||
+    Deno.env.get('SITE_URL')?.trim() ||
+    'https://app.e-colector.com';
+
+  const notifyRes = await fetch(`${SUPABASE_URL}/functions/v1/send-notification-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${invokeKey}`,
+      apikey: invokeKey,
+    },
+    body: JSON.stringify({
+      type: 'account_verified',
+      to_email: row.email,
+      full_name: typeof row.full_name === 'string' ? row.full_name : '',
+      app_url: appUrl,
+    }),
+  });
+
+  if (!notifyRes.ok) {
+    const txt = await notifyRes.text().catch(() => '');
+    console.error('[admin-set-verification] falló envío correo:', notifyRes.status, txt);
+  } else {
+    console.info('[admin-set-verification] correo cuenta verificada →', row.email);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -63,6 +106,14 @@ serve(async (req) => {
   if (!patchRes.ok) {
     const txt = await patchRes.text().catch(() => '');
     return json({ error: txt || 'No se pudo actualizar la verificación' }, 400);
+  }
+
+  if (is_verified) {
+    try {
+      await sendAccountVerifiedEmail(user_id);
+    } catch (e) {
+      console.error('[admin-set-verification] sendAccountVerifiedEmail:', e);
+    }
   }
 
   console.info('[admin-set-verification] user:', user_id, '→', is_verified);
