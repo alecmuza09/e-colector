@@ -410,12 +410,12 @@ export default function AdminConsole() {
   };
 
   const handleToggleVerification = async (user: UserRow) => {
+    const next = !user.is_verified;
     try {
-      const { error } = await supabase.from('users').update({ is_verified: !user.is_verified }).eq('id', user.id);
-      if (error) throw error;
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_verified: !u.is_verified } : u)));
-    } catch {
-      alert('Error al actualizar verificación');
+      await invokeEdgeFn('admin-set-verification', { user_id: user.id, is_verified: next });
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_verified: next } : u)));
+    } catch (e: any) {
+      alert(e?.message || 'Error al actualizar verificación. ¿Deployaste la Edge Function admin-set-verification?');
     }
   };
 
@@ -761,6 +761,7 @@ export default function AdminConsole() {
                   <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
                     {['all', 'buyer', 'seller', 'collector', 'admin'].map((r) => (
                       <button
+                        type="button"
                         key={r}
                         onClick={() => setRoleFilter(r)}
                         className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
@@ -826,6 +827,7 @@ export default function AdminConsole() {
                           <td className="px-5 py-3">
                             <div className="flex gap-1.5">
                               <button
+                                type="button"
                                 onClick={() => openManageUser(u)}
                                 title="Gestionar usuario"
                                 className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-colors"
@@ -833,14 +835,16 @@ export default function AdminConsole() {
                                 <Settings2 className="w-4 h-4" />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleToggleVerification(u)}
-                                title={u.is_verified ? 'Quitar verificación' : 'Verificar'}
+                                title={u.is_verified ? 'Quitar verificación' : 'Verificar cuenta'}
                                 className={`p-1.5 rounded-lg transition-colors ${u.is_verified ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100'}`}
                               >
                                 {u.is_verified ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                               </button>
                               {u.role !== 'admin' && (
                                 <button
+                                  type="button"
                                   onClick={() => handleDeleteUser(u)}
                                   title="Eliminar usuario"
                                   className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors"

@@ -108,15 +108,15 @@ export default function BuyerDashboard() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
 
-      {/* Banner: cuenta en verificación */}
+      {/* Banner: verificación (solo comprador/reciclador) */}
       {userProfile && !(userProfile as any).is_verified && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="font-semibold text-yellow-800 text-sm">Cuenta en verificación</p>
-            <p className="text-xs text-yellow-700 mt-0.5 leading-relaxed">
-              Tu cuenta está siendo revisada por nuestro equipo. Recibirás una notificación cuando sea aprobada.
-              Algunas funciones (como contactar recolectores y ver stocks completos) estarán disponibles una vez verificada.
+            <p className="font-semibold text-amber-900 text-sm">Estamos verificando tu cuenta</p>
+            <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+              Antes de que comiences a usar la plataforma por completo, estamos en un proceso de revisión de tu cuenta como comprador / reciclador.
+              Suele tardar poco tiempo. Cuando terminemos, podrás acceder sin restricciones a todas las funciones (mensajes, stocks de recolectores, etc.).
             </p>
           </div>
         </div>

@@ -111,6 +111,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         city: pending.city,
         terms_accepted: pending.termsAccepted,
         profile_data: pending.additionalData || {},
+        // Los generadores pueden publicar sin verificación manual; compradores y recolectores sí la requieren.
+        is_verified: pending.role === 'seller',
       });
 
       if (profileError) throw profileError;

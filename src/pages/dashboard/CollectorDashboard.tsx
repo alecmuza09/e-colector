@@ -8,7 +8,7 @@ import {
   Truck, Package, Leaf, Plus, Trash2, BarChart3,
   MapPin, Clock, CheckCircle, Loader, ChevronRight,
   Droplets, Zap, Wind, Trees, Scale, MessageSquare,
-  Store, Edit2, X, DollarSign, AlertCircle,
+  Store, Edit2, X, DollarSign, AlertCircle, AlertTriangle,
 } from 'lucide-react';
 
 // ─── Factores de impacto por kg ─────────────────────────────────────────────
@@ -325,6 +325,19 @@ export default function CollectorDashboard() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+      {userProfile && !(userProfile as any).is_verified && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-amber-900 text-sm">Estamos verificando tu cuenta</p>
+            <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+              Antes de que comiences a operar por completo como recolector, estamos en un proceso breve de revisión de tu cuenta.
+              Suele tardar poco tiempo. Te notificaremos cuando puedas usar todas las funciones sin restricciones.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Hero banner */}
       <div className="bg-gradient-to-r from-teal-600 to-emerald-700 rounded-2xl p-6 text-white">

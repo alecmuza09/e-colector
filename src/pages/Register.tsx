@@ -312,12 +312,17 @@ async function notifyAdminsNewUser(userName: string, userEmail: string, role: st
     const senderId = newUser?.id || admins[0].id;
     const roleName = roleDisplayName[role] || role;
 
+    const needsVerification = role === 'buyer' || role === 'collector';
+    const content = needsVerification
+      ? `${userName} (${userEmail}) se registró como ${roleName}. Está pendiente de verificación del equipo antes de usar todas las funciones.`
+      : `${userName} (${userEmail}) se registró como ${roleName}. Los generadores pueden publicar sin verificación previa.`;
+
     await supabase.from('messages').insert(
       admins.map((admin: { id: string }) => ({
         sender_id: senderId,
         receiver_id: admin.id,
         subject: `Nuevo usuario registrado: ${roleName}`,
-        content: `${userName} (${userEmail}) se ha registrado como ${roleName} y está pendiente de verificación.`,
+        content,
         read: false,
       }))
     );
