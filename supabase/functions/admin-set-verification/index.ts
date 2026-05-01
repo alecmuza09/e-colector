@@ -2,6 +2,10 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+
+/** Mismo remitente que send-notification-email (Resend). */
+const FROM_EMAIL = 'E-Colector <notificaciones@app.e-colector.com>';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -14,9 +18,55 @@ const json = (body: unknown, status = 200) =>
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
 
-/** Envía correo vía misma Edge Function que el resto de notificaciones (Resend). */
+function escapeHtml(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildAccountVerifiedHtml(fullName: string, appUrl: string): string {
+  const name = escapeHtml(fullName || 'Usuario');
+  const base = appUrl.replace(/\/$/, '');
+  const dashboardHref = `${base}/dashboard`;
+  const loginHref = `${base}/login`;
+
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+      <div style="background:#059669;padding:24px 32px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">♻️ e-colector</h1>
+        <p style="color:#a7f3d0;margin:4px 0 0;font-size:14px;">Cuenta verificada</p>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#111827;margin-top:0;font-size:18px;">¡Tu cuenta ha sido verificada, ${name}!</h2>
+        <p style="color:#6b7280;font-size:15px;line-height:1.6;">
+          El equipo de e-colector confirmó tu perfil. Ya puedes usar la plataforma con todas las funciones disponibles para tu tipo de cuenta (publicar, ofertar, mensajes, etc., según aplique).
+        </p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${dashboardHref}"
+             style="display:inline-block;background:#059669;color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
+            Ir a mi panel →
+          </a>
+        </div>
+        <p style="color:#9ca3af;font-size:13px;line-height:1.6;text-align:center;margin:0;">
+          Si no has iniciado sesión recientemente:<br>
+          <a href="${loginHref}" style="color:#059669;">${escapeHtml(loginHref)}</a>
+        </p>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0;">
+        <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">
+          Recibiste este correo porque tu cuenta fue verificada por un administrador en app.e-colector.com.
+        </p>
+      </div>
+    </div>`;
+}
+
+/** Resend directo (evita llamar a otra Edge Function: el gateway suele rechazar ese JWT con 401). */
 async function sendAccountVerifiedEmail(userId: string): Promise<void> {
-  const invokeKey = Deno.env.get('SUPABASE_ANON_KEY') ?? SERVICE_ROLE_KEY;
+  if (!RESEND_API_KEY) {
+    console.error('[admin-set-verification] Falta secret RESEND_API_KEY; no se envía correo de verificación.');
+    return;
+  }
 
   const rowRes = await fetch(
     `${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(userId)}&select=email,full_name&limit=1`,
@@ -34,27 +84,28 @@ async function sendAccountVerifiedEmail(userId: string): Promise<void> {
     Deno.env.get('SITE_URL')?.trim() ||
     'https://app.e-colector.com';
 
-  const notifyRes = await fetch(`${SUPABASE_URL}/functions/v1/send-notification-email`, {
+  const html = buildAccountVerifiedHtml(typeof row.full_name === 'string' ? row.full_name : '', appUrl);
+
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${invokeKey}`,
-      apikey: invokeKey,
     },
     body: JSON.stringify({
-      type: 'account_verified',
-      to_email: row.email,
-      full_name: typeof row.full_name === 'string' ? row.full_name : '',
-      app_url: appUrl,
+      from: FROM_EMAIL,
+      to: row.email.trim(),
+      subject: '✅ Tu cuenta en e-colector ha sido verificada',
+      html,
     }),
   });
 
-  if (!notifyRes.ok) {
-    const txt = await notifyRes.text().catch(() => '');
-    console.error('[admin-set-verification] falló envío correo:', notifyRes.status, txt);
-  } else {
-    console.info('[admin-set-verification] correo cuenta verificada →', row.email);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error('[admin-set-verification] Resend:', res.status, JSON.stringify(data));
+    return;
   }
+  console.info('[admin-set-verification] correo cuenta verificada →', row.email, '| id:', (data as any)?.id);
 }
 
 serve(async (req) => {
