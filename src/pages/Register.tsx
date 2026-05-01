@@ -254,7 +254,7 @@ const VendedorFields: React.FC<FieldProps> = ({ formData, handleChange, handleCh
   </div>
 );
 
-const RecolectorFields: React.FC<FieldProps> = ({ formData, handleChange, handleCheckboxChange: _unused }) => (
+const RecolectorFields: React.FC<FieldProps> = ({ formData, handleChange, handleCheckboxChange }) => (
   <div className="space-y-5">
     <div className="rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm text-teal-900 leading-relaxed">
       <span className="font-semibold">📍 Zona de operación</span>
