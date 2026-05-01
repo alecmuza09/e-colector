@@ -121,3 +121,9 @@ export const getRandomCoordinates = (municipality: Municipality): { latitude: nu
 
 // Lista de nombres de municipios para usar en selects
 export const MUNICIPALITY_NAMES = MUNICIPALITIES.map(m => m.name);
+
+/** Colonias / zonas por municipio (misma fuente que usa el flujo de publicar) */
+export function getColoniasForMunicipality(municipalityName: string): string[] {
+  const m = getMunicipalityByName(municipalityName);
+  return m?.commonAddresses?.slice() ?? [];
+}

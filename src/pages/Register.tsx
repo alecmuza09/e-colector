@@ -4,6 +4,7 @@ import { Eye, EyeOff, User, Mail, Phone, MapPin, Lock, ChevronLeft, CheckCircle2
 import RoleSelection from '../components/auth/RoleSelection';
 import { UserRole } from '../types/user';
 import { useAuth } from '../context/AuthContext';
+import { MUNICIPALITY_NAMES, getColoniasForMunicipality } from '../config/municipalities';
 import { supabase } from '../lib/supabase';
 import { sendWelcomeRegistrationEmail } from '../services/email';
 
@@ -334,7 +335,8 @@ function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('');
+  const [municipality, setMunicipality] = useState('');
+  const [colonia, setColonia] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -379,8 +381,9 @@ function Register() {
     if (password.length < 8) return setError('La contraseña debe tener al menos 8 caracteres.');
 
     setLoading(true);
+    const cityLabel = municipality && colonia ? `${municipality}, ${colonia}` : '';
     const { error: signUpError } = await signUp(email, password, {
-      name, email, password, role: selectedRole, phone, city, termsAccepted, additionalData,
+      name, email, password, role: selectedRole, phone, city: cityLabel, termsAccepted, additionalData,
     });
 
     const fireWelcome = () => {
@@ -435,7 +438,8 @@ function Register() {
   }
 
   const roleInfo = roleLabels[selectedRole];
-  const isFormValid = !loading && password === confirmPassword && termsAccepted && name && email && phone && city && password.length >= 8;
+  const coloniasOptions = municipality ? getColoniasForMunicipality(municipality) : [];
+  const isFormValid = !loading && password === confirmPassword && termsAccepted && name && email && phone && municipality && colonia && password.length >= 8;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex flex-col">
@@ -494,14 +498,35 @@ function Register() {
                     value={phone} onChange={e => setPhone(e.target.value)}
                     placeholder="Ej: 81 1234 5678"
                   />
-                  <div className="sm:col-span-2">
-                    <Input
-                      id="city" name="city" label="Ciudad / Región principal" required
-                      icon={<MapPin size={16} />}
-                      value={city} onChange={e => setCity(e.target.value)}
-                      placeholder="Ej: Monterrey, Nuevo León"
-                    />
-                  </div>
+                  <Select
+                    id="registration-municipality"
+                    label="Municipio"
+                    value={municipality}
+                    onChange={(e) => {
+                      setMunicipality(e.target.value);
+                      setColonia('');
+                    }}
+                    options={MUNICIPALITY_NAMES}
+                  />
+                  <Select
+                    id="registration-colonia"
+                    label="Colonia / Zona"
+                    value={colonia}
+                    onChange={(e) => setColonia(e.target.value)}
+                    options={coloniasOptions}
+                    disabled={!municipality || coloniasOptions.length === 0}
+                  />
+                  {!municipality ? (
+                    <p className="sm:col-span-2 text-xs text-gray-500 flex items-start gap-1.5">
+                      <MapPin size={14} className="mt-0.5 shrink-0 text-emerald-600" />
+                      Primero elige el municipio; luego la colonia o zona (misma lista que al publicar material).
+                    </p>
+                  ) : (
+                    <p className="sm:col-span-2 text-xs text-gray-500 flex items-start gap-1.5">
+                      <MapPin size={14} className="mt-0.5 shrink-0 text-emerald-600" />
+                      Usamos las mismas zonas del Área Metropolitana que en &quot;Publicar&quot;. Si necesitas más detalle de dirección, podrás completarlo en tu perfil o al crear una publicación.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
