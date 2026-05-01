@@ -8,6 +8,26 @@ import { MunicipalityAddressFields } from '../components/location/MunicipalityAd
 import { supabase } from '../lib/supabase';
 import { sendWelcomeRegistrationEmail } from '../services/email';
 
+/** Primera coincidencia Nominatim (registro: avisos sin elegir sugerencia). */
+async function nominatimGeocodeFirst(query: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('limit', '1');
+    url.searchParams.set('q', query);
+    const res = await fetch(url.toString(), { headers: { 'Accept-Language': 'es' } });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { lat?: string; lon?: string }[];
+    const r = json?.[0];
+    if (!r?.lat || !r?.lon) return null;
+    const lat = parseFloat(r.lat);
+    const lng = parseFloat(r.lon);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Helper components ───────────────────────────────────────────────────────
 
 const roleLabels: Record<UserRole, { label: string; emoji: string; color: string }> = {
@@ -234,7 +254,7 @@ const VendedorFields: React.FC<FieldProps> = ({ formData, handleChange, handleCh
   </div>
 );
 
-const RecolectorFields: React.FC<FieldProps> = ({ formData, handleChange, handleCheckboxChange }) => (
+const RecolectorFields: React.FC<FieldProps> = ({ formData, handleChange, handleCheckboxChange: _unused }) => (
   <div className="space-y-5">
     <div className="rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm text-teal-900 leading-relaxed">
       <span className="font-semibold">📍 Zona de operación</span>
@@ -242,6 +262,59 @@ const RecolectorFields: React.FC<FieldProps> = ({ formData, handleChange, handle
         La ubicación de tu operación es la misma que indicaste en <strong>Información básica</strong> (municipio + dirección con autocompletado), igual que cuando publicas material. No hace falta volver a escribirla aquí.
       </p>
     </div>
+
+    <div className="rounded-xl border border-gray-200 bg-gray-50/90 px-4 py-4 space-y-4">
+      <div>
+        <p className="text-sm font-semibold text-gray-800">Avisos cuando publican material en tu zona</p>
+        <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+          Usamos la ubicación de <strong>Información básica</strong>. Para que el radio (km) sea preciso, conviene elegir la dirección desde las sugerencias del mapa al escribir.
+        </p>
+      </div>
+      <label className="flex items-start gap-3 cursor-pointer group">
+        <input
+          type="checkbox"
+          name="notificacionesMaterialCerca"
+          checked={formData.notificacionesMaterialCerca || false}
+          onChange={handleChange}
+          className="w-4 h-4 mt-0.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+        />
+        <span className="text-sm text-gray-700 leading-snug">
+          Quiero recibir un <strong>correo</strong> cuando un <strong>generador</strong> publique material reciclable (venta o donación) dentro de mi radio de recolección.
+        </span>
+      </label>
+      {formData.notificacionesMaterialCerca && (
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">Radio de recolección</p>
+          <div className="flex flex-wrap gap-2">
+            {([1, 3, 5] as const).map((km) => {
+              const v = String(km);
+              const selected = String(formData.radioRecoleccionKm ?? '3') === v;
+              return (
+                <label
+                  key={km}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium cursor-pointer transition ${
+                    selected
+                      ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-teal-400'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="radioRecoleccionKm"
+                    value={v}
+                    checked={selected}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  {km} km
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+
     <Select name="tipoRecolector" label="¿Eres...?" id="tipoRecolector"
       value={formData.tipoRecolector || ''} onChange={handleChange}
       options={['Recolector independiente', 'Centro de acopio', 'Empresa recicladora / Transformadora', 'Cooperativa o agrupación']} />
@@ -346,6 +419,7 @@ function Register() {
   const [phone, setPhone] = useState('');
   const [locationMunicipality, setLocationMunicipality] = useState('');
   const [locationAddress, setLocationAddress] = useState('');
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -395,10 +469,53 @@ function Register() {
         ? `${locationMunicipality} · ${locationAddress.trim()}`
         : '';
 
-    const additionalPayload =
-      selectedRole === UserRole.COLLECTOR
-        ? { ...additionalData, zonasOperacion: cityLabel }
-        : additionalData;
+    let coordsForNotify = locationCoords;
+    if (selectedRole === UserRole.COLLECTOR && additionalData.notificacionesMaterialCerca) {
+      if (!coordsForNotify && locationMunicipality && locationAddress.trim()) {
+        coordsForNotify = await nominatimGeocodeFirst(
+          `${locationAddress.trim()}, ${locationMunicipality}, Nuevo León, México`
+        );
+      }
+      if (!coordsForNotify) {
+        setLoading(false);
+        return setError(
+          'Para activar avisos por zona, elige una dirección de la lista desplegable o una dirección que podamos ubicar en el mapa.'
+        );
+      }
+    }
+
+    let additionalPayload: Record<string, unknown> =
+      selectedRole === UserRole.COLLECTOR ? { ...additionalData, zonasOperacion: cityLabel } : { ...additionalData };
+
+    if (selectedRole === UserRole.COLLECTOR) {
+      const wantNotif = !!additionalPayload.notificacionesMaterialCerca;
+      const kmParsed = parseInt(String(additionalPayload.radioRecoleccionKm ?? '3'), 10);
+      const radioKm = [1, 3, 5].includes(kmParsed) ? kmParsed : 3;
+
+      const {
+        notificacionesMaterialCerca: _a,
+        radioRecoleccionKm: _b,
+        puntos: incomingPuntos,
+        ...collectorRest
+      } = additionalPayload;
+
+      const puntos: Record<string, unknown> = { ...((incomingPuntos as object) || {}) };
+      if (wantNotif && coordsForNotify) {
+        puntos.buscar = {
+          lat: coordsForNotify.lat,
+          lng: coordsForNotify.lng,
+          address: cityLabel,
+        };
+      }
+
+      additionalPayload = {
+        ...collectorRest,
+        zonasOperacion: cityLabel,
+        notificaciones_activas: wantNotif,
+        radio_notificaciones_km: radioKm,
+        ...(Object.keys(puntos).length > 0 ? { puntos } : {}),
+      };
+    }
 
     const { error: signUpError } = await signUp(email, password, {
       name,
@@ -486,6 +603,7 @@ function Register() {
             setSelectedRole(null);
             setLocationMunicipality('');
             setLocationAddress('');
+            setLocationCoords(null);
           }}
           className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
         >
@@ -540,6 +658,7 @@ function Register() {
                     address={locationAddress}
                     onMunicipalityChange={setLocationMunicipality}
                     onAddressChange={setLocationAddress}
+                    onCoordinatesChange={setLocationCoords}
                   />
                 </div>
               </div>

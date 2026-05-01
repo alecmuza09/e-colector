@@ -7,6 +7,8 @@ export interface MunicipalityAddressFieldsProps {
   address: string;
   onMunicipalityChange: (value: string) => void;
   onAddressChange: (value: string) => void;
+  /** Si el usuario elige una sugerencia Nominatim, aquí van lat/lng; null si escribe a mano o cambia municipio. */
+  onCoordinatesChange?: (coords: { lat: number; lng: number } | null) => void;
   municipalityError?: string;
   addressError?: string;
 }
@@ -19,6 +21,7 @@ export function MunicipalityAddressFields({
   address,
   onMunicipalityChange,
   onAddressChange,
+  onCoordinatesChange,
   municipalityError,
   addressError,
 }: MunicipalityAddressFieldsProps) {
@@ -89,8 +92,13 @@ export function MunicipalityAddressFields({
     addressError ? 'border-red-400 bg-red-50' : 'border-gray-300'
   }`;
 
-  const pickSuggestion = (item: { display_name: string }) => {
+  const pickSuggestion = (item: { display_name: string; lat: string; lon: string }) => {
     onAddressChange(item.display_name);
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
+    if (onCoordinatesChange && Number.isFinite(lat) && Number.isFinite(lng)) {
+      onCoordinatesChange({ lat, lng });
+    }
     setShowSuggestions(false);
     setSuggestions([]);
   };
@@ -108,6 +116,7 @@ export function MunicipalityAddressFields({
             onChange={(e) => {
               onMunicipalityChange(e.target.value);
               onAddressChange('');
+              onCoordinatesChange?.(null);
             }}
             className={selectCls}
             required
@@ -134,7 +143,10 @@ export function MunicipalityAddressFields({
               id="reg-address"
               type="text"
               value={address}
-              onChange={(e) => onAddressChange(e.target.value)}
+              onChange={(e) => {
+                onAddressChange(e.target.value);
+                onCoordinatesChange?.(null);
+              }}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
               disabled={!municipality}
               placeholder={municipality ? 'Escribe colonia, calle o punto de referencia…' : 'Primero elige municipio'}

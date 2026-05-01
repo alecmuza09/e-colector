@@ -36,6 +36,8 @@ export interface NotifyNearbyOptions {
   productCategory: string;
   publisherName: string;
   productId: string;
+  /** No enviar correo al mismo usuario que publicó */
+  publisherUserId?: string;
 }
 
 /**
@@ -45,6 +47,8 @@ export interface NotifyNearbyOptions {
  */
 export async function notifyNearbyCollectors(options: NotifyNearbyOptions): Promise<void> {
   try {
+    const { publisherUserId, ...rest } = options;
+
     const { data: collectors } = await supabase
       .from('users')
       .select('id, email, full_name, profile_data')
@@ -53,6 +57,8 @@ export async function notifyNearbyCollectors(options: NotifyNearbyOptions): Prom
     if (!collectors || collectors.length === 0) return;
 
     for (const c of collectors as any[]) {
+      if (publisherUserId && c.id === publisherUserId) continue;
+
       const pd = c.profile_data || {};
       if (!pd.notificaciones_activas) continue;
 
@@ -61,11 +67,13 @@ export async function notifyNearbyCollectors(options: NotifyNearbyOptions): Prom
 
       // Punto de referencia prioritario: buscar > publicar > acopio
       const ref = puntos.buscar ?? puntos.publicar ?? puntos.acopio;
-      if (!ref?.lat || !ref?.lng) continue;
+      const refLat = Number(ref?.lat);
+      const refLng = Number(ref?.lng);
+      if (!Number.isFinite(refLat) || !Number.isFinite(refLng)) continue;
 
       const distKm = haversineDistance(
-        ref.lat, ref.lng,
-        options.productLat, options.productLng
+        refLat, refLng,
+        rest.productLat, rest.productLng
       );
 
       if (distKm <= radiusKm) {
@@ -73,11 +81,11 @@ export async function notifyNearbyCollectors(options: NotifyNearbyOptions): Prom
         sendNearbyMaterialEmail({
           to_email: c.email,
           receiver_name: c.full_name,
-          product_title: options.productTitle,
-          product_address: options.productAddress,
-          product_category: options.productCategory,
-          publisher_name: options.publisherName,
-          product_id: options.productId,
+          product_title: rest.productTitle,
+          product_address: rest.productAddress,
+          product_category: rest.productCategory,
+          publisher_name: rest.publisherName,
+          product_id: rest.productId,
           distance_km: Math.round(distKm * 10) / 10,
         });
       }

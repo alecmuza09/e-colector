@@ -426,16 +426,25 @@ const PublishListing = () => {
         console.warn('No se pudieron enviar notificaciones:', notifyErr);
       }
 
-      // Notificar a recolectores con radio configurado (fire-and-forget)
-      if (!isEditing && newProduct?.id && coords.latitude && coords.longitude) {
+      // Recolectores: correo solo cuando un generador publica venta o donación (no stock_recolector)
+      const isGeneratorListing = resolvedType === 'venta' || resolvedType === 'donacion';
+      if (
+        !isEditing &&
+        newProduct?.id &&
+        coords.latitude &&
+        coords.longitude &&
+        isGeneratorListing &&
+        userProfile?.id
+      ) {
         notifyNearbyCollectors({
           productLat: coords.latitude,
           productLng: coords.longitude,
           productTitle: payload.title,
           productAddress: payload.address,
           productCategory: payload.category,
-          publisherName: userProfile?.full_name || 'Un usuario',
+          publisherName: userProfile.full_name || 'Un usuario',
           productId: newProduct.id,
+          publisherUserId: userProfile.id,
         });
       }
 
