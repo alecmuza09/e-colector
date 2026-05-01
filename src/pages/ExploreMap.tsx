@@ -5,7 +5,8 @@ import 'leaflet/dist/leaflet.css';
 import { Product } from '../data/mockProducts';
 import { getProducts } from '../services/products';
 import { Filter, Search, X, MapPin, DollarSign, CheckCircle, Loader } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 // Coordenadas aproximadas del centro del Área Metropolitana de Monterrey
 const MONTERREY_CENTER: L.LatLngExpression = [25.6866, -100.3161];
@@ -111,7 +112,11 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
           </div>
         )}
         <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-medium">
-          {product.type === 'venta' ? '💰 Venta' : '🎁 Donación'}
+          {product.type === 'stock_recolector'
+            ? '📦 Stock recolector'
+            : product.type === 'venta'
+              ? '💰 Venta'
+              : '🎁 Donación'}
         </div>
       </div>
 
@@ -157,7 +162,21 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
   );
 };
 
+/** Qué catálogo muestra el mapa según rol (dos mundos: generadores vs recolectores). */
+type MapAudience = 'generadores' | 'recolectores' | 'mixto';
+
+function audienceFromRole(role: string | null | undefined, authenticated: boolean): MapAudience {
+  if (!authenticated || !role) return 'mixto';
+  if (role === 'buyer') return 'recolectores';
+  if (role === 'collector' || role === 'seller') return 'generadores';
+  return 'mixto';
+}
+
 const ExploreMapLeaflet = () => {
+  const { userRole, isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+  const mapAudience: MapAudience = audienceFromRole(userRole, isAuthenticated);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [activeFilters, setActiveFilters] = useState<string[]>(['Todos']);
@@ -168,8 +187,14 @@ const ExploreMapLeaflet = () => {
   const [loading, setLoading] = useState(true);
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
+  /** Solo visitantes/admin: alternar catálogo en mapa completo */
   const [showOnlyCollectors, setShowOnlyCollectors] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) setSearchTerm(q);
+  }, [searchParams]);
 
   // Cargar productos desde Supabase
   useEffect(() => {
@@ -182,22 +207,25 @@ const ExploreMapLeaflet = () => {
     loadProducts();
   }, []);
 
-  // Filtrado mejorado
   const filteredProducts = useMemo(() => {
-    let results = products;
+    let results = [...products];
 
-    if (showOnlyCollectors) {
-      results = results.filter(p => p.type === 'stock_recolector');
-    } else {
-      if (selectedCategory !== 'Todos') {
-        results = results.filter(p => p.category === selectedCategory);
-      }
-      if (minPrice !== '') {
-        results = results.filter(p => p.price >= Number(minPrice));
-      }
-      if (maxPrice !== '') {
-        results = results.filter(p => p.price <= Number(maxPrice));
-      }
+    if (mapAudience === 'generadores') {
+      results = results.filter((p) => p.type === 'venta' || p.type === 'donacion');
+    } else if (mapAudience === 'recolectores') {
+      results = results.filter((p) => p.type === 'stock_recolector');
+    } else if (showOnlyCollectors) {
+      results = results.filter((p) => p.type === 'stock_recolector');
+    }
+
+    if (selectedCategory !== 'Todos') {
+      results = results.filter((p) => p.category === selectedCategory);
+    }
+    if (minPrice !== '') {
+      results = results.filter((p) => p.price >= Number(minPrice));
+    }
+    if (maxPrice !== '') {
+      results = results.filter((p) => p.price <= Number(maxPrice));
     }
 
     if (searchTerm.trim()) {
@@ -211,7 +239,7 @@ const ExploreMapLeaflet = () => {
     }
 
     return results;
-  }, [products, selectedCategory, searchTerm, minPrice, maxPrice, showOnlyCollectors]);
+  }, [products, mapAudience, selectedCategory, searchTerm, minPrice, maxPrice, showOnlyCollectors]);
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: currency }).format(price);
@@ -223,7 +251,7 @@ const ExploreMapLeaflet = () => {
     setActiveFilters(['Todos']);
     setMinPrice('');
     setMaxPrice('');
-    setShowOnlyCollectors(false);
+    if (mapAudience === 'mixto') setShowOnlyCollectors(false);
     if (searchInputRef.current) {
       searchInputRef.current.value = '';
     }
@@ -271,6 +299,34 @@ const ExploreMapLeaflet = () => {
             />
           </div>
 
+          {/* Contexto por rol */}
+          {mapAudience === 'generadores' && (
+            <div className="rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 px-3 py-2.5 text-xs text-teal-900 dark:text-teal-100 leading-relaxed">
+              <strong>Recolector / Generador:</strong> aquí solo ves material ofrecido por{' '}
+              <strong>generadores</strong> (venta o donación). Para publicar lo que recolectaste y que lo vean{' '}
+              <strong>compradores</strong>, usa{' '}
+              <Link to="/publicar" className="font-semibold underline underline-offset-2">
+                Publicar mi stock
+              </Link>
+              .
+            </div>
+          )}
+          {mapAudience === 'recolectores' && (
+            <div className="rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-xs text-blue-900 dark:text-blue-100 leading-relaxed">
+              <strong>Comprador:</strong> este mapa muestra solo <strong>stock publicado por recolectores</strong>.
+              También puedes ver el listado en{' '}
+              <Link to="/mercado-recolectores" className="font-semibold underline underline-offset-2">
+                Stocks recolectores
+              </Link>
+              .
+            </div>
+          )}
+          {mapAudience === 'mixto' && (
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600 px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
+              Vista completa: usa <strong>Solo recolectores</strong> para ver solo stock de recolectores, o déjalo apagado para ver también ventas y donaciones de generadores.
+            </div>
+          )}
+
           {/* Filtros Activos (Chips) */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
@@ -298,33 +354,74 @@ const ExploreMapLeaflet = () => {
             </div>
           </div>
 
-          {/* Filtro de Tipo / Recolectores */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tipo</label>
-            <button
-              onClick={() => { setShowOnlyCollectors(v => !v); setSelectedCategory('Todos'); }}
-              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                showOnlyCollectors
-                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
-                  : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-emerald-500'
-              }`}
-            >
-              <span style={{display:'inline-block',width:18,height:18,background:showOnlyCollectors?'white':'#059669',borderRadius:4,transform:'rotate(45deg)',flexShrink:0}} />
-              <span>♻️ Solo Recolectores</span>
-            </button>
-          </div>
+          {/* Filtro tipo (solo invitados/admin; compradores y recolectores tienen catálogo fijo) */}
+          {mapAudience === 'mixto' && (
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tipo</label>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowOnlyCollectors((v) => !v);
+                  setSelectedCategory('Todos');
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                  showOnlyCollectors
+                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
+                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-emerald-500'
+                }`}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 18,
+                    height: 18,
+                    background: showOnlyCollectors ? 'white' : '#059669',
+                    borderRadius: 4,
+                    transform: 'rotate(45deg)',
+                    flexShrink: 0,
+                  }}
+                />
+                <span>♻️ Solo recolectores</span>
+              </button>
+            </div>
+          )}
 
-          {/* Leyenda de pines */}
+          {/* Leyenda de pines (solo lo relevante para tu rol) */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 space-y-2">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Leyenda</p>
-            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-              <div style={{width:16,height:16,borderRadius:'50%',background:'#3B82F6',border:'2px solid white',boxShadow:'0 1px 4px rgba(0,0,0,0.2)',flexShrink:0}} />
-              Pin circular — Venta / Donación
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-              <div style={{width:16,height:16,borderRadius:3,background:'#059669',border:'2px solid white',transform:'rotate(45deg)',boxShadow:'0 1px 4px rgba(0,0,0,0.2)',flexShrink:0}} />
-              Pin rombo — Stock de Recolector
-            </div>
+            {(mapAudience === 'generadores' || mapAudience === 'mixto') && (
+              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                <div
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: '#3B82F6',
+                    border: '2px solid white',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                    flexShrink: 0,
+                  }}
+                />
+                Pin circular — Venta / donación (generadores)
+              </div>
+            )}
+            {(mapAudience === 'recolectores' || mapAudience === 'mixto') && (
+              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                <div
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: 3,
+                    background: '#059669',
+                    border: '2px solid white',
+                    transform: 'rotate(45deg)',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                    flexShrink: 0,
+                  }}
+                />
+                Pin rombo — Stock de recolector (compradores)
+              </div>
+            )}
           </div>
 
           {/* Filtro de Precio */}
@@ -364,7 +461,11 @@ const ExploreMapLeaflet = () => {
           </div>
 
           {/* Botón Resetear Filtros */}
-          {(searchTerm || selectedCategory !== 'Todos' || minPrice || maxPrice) && (
+          {(searchTerm ||
+            selectedCategory !== 'Todos' ||
+            minPrice ||
+            maxPrice ||
+            (mapAudience === 'mixto' && showOnlyCollectors)) && (
             <button
               onClick={handleResetFilters}
               className="w-full py-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
