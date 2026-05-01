@@ -7,6 +7,19 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FROM_EMAIL = 'E-Colector <notificaciones@app.e-colector.com>';
 const ADMIN_EMAIL = 'hola@e-colector.com';
 
+/** Si el cliente manda placeholder (.env mal) o texto sin http(s), usar producción. */
+const DEFAULT_APP_SITE = 'https://app.e-colector.com';
+
+function normalizeAppUrl(raw: unknown): string {
+  const s = typeof raw === 'string' ? raw.trim().replace(/\/+$/, '') : '';
+  if (!s) return DEFAULT_APP_SITE;
+  if (s === 'VITE_PUBLIC_SITE_URL' || s === 'VITE_SITE_URL' || s === '${VITE_PUBLIC_SITE_URL}') {
+    return DEFAULT_APP_SITE;
+  }
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  return DEFAULT_APP_SITE;
+}
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -266,7 +279,7 @@ serve(async (req) => {
         });
       }
 
-      const html = buildNewMessageEmail(sender_name, message_preview, app_url || 'https://e-colector.com');
+      const html = buildNewMessageEmail(sender_name, message_preview, normalizeAppUrl(app_url));
       const { ok, resendError } = await sendEmail(receiverEmail, `📬 Nuevo mensaje de ${sender_name} — e-colector`, html);
 
       return new Response(JSON.stringify({ success: ok, error: resendError }), {
@@ -294,8 +307,7 @@ serve(async (req) => {
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         });
       }
-      const appUrl = typeof app_url === 'string' && app_url.trim() ? app_url.trim() : 'https://app.e-colector.com';
-      const html = buildAccountVerifiedEmail(full_name || '', appUrl);
+      const appUrl = normalizeAppUrl(app_url);
       const { ok, resendError } = await sendEmail(
         to_email.trim(),
         '✅ Tu cuenta en e-colector ha sido verificada',
@@ -315,7 +327,7 @@ serve(async (req) => {
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         });
       }
-      const appUrl = typeof app_url === 'string' && app_url.trim() ? app_url.trim() : 'https://app.e-colector.com';
+      const appUrl = normalizeAppUrl(app_url);
       const html = buildWelcomeRegistrationEmail(full_name || '', to_email, appUrl);
       const { ok, resendError } = await sendEmail(
         to_email.trim(),
@@ -336,7 +348,7 @@ serve(async (req) => {
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
         });
       }
-      const html = buildNearbyMaterialEmail(receiver_name, product_title, product_address, product_category, publisher_name, product_id, distance_km, app_url || 'https://e-colector.com');
+      const html = buildNearbyMaterialEmail(receiver_name, product_title, product_address, product_category, publisher_name, product_id, distance_km, normalizeAppUrl(app_url));
       const { ok, resendError } = await sendEmail(to_email, `♻️ Nuevo material cerca de ti: ${product_title}`, html);
       return new Response(JSON.stringify({ success: ok, error: resendError }), {
         status: ok ? 200 : 500,

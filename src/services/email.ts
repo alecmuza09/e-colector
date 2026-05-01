@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { resolvePublicSiteUrl } from '../lib/publicSiteUrl';
 
 interface NewMessageEmailOptions {
   receiver_id: string;
@@ -13,16 +14,12 @@ interface ContactFormEmailOptions {
   message: string;
 }
 
-const APP_URL =
-  import.meta.env.VITE_PUBLIC_SITE_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : 'https://app.e-colector.com');
-
 export async function sendNewMessageEmail(options: NewMessageEmailOptions): Promise<void> {
   try {
     await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'new_message',
-        app_url: APP_URL,
+        app_url: resolvePublicSiteUrl(),
         ...options,
       },
     });
@@ -60,7 +57,7 @@ export async function sendNearbyMaterialEmail(options: NearbyMaterialEmailOption
     await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'nearby_material',
-        app_url: APP_URL,
+        app_url: resolvePublicSiteUrl(),
         ...options,
       },
     });
@@ -75,7 +72,7 @@ export async function sendWelcomeRegistrationEmail(options: { to_email: string; 
     await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'welcome_registration',
-        app_url: APP_URL,
+        app_url: resolvePublicSiteUrl(),
         to_email: options.to_email.trim(),
         full_name: options.full_name.trim(),
       },

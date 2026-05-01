@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { UserRole } from '../types/user';
 import { supabase } from '../lib/supabase';
+import { resolvePublicSiteUrl } from '../lib/publicSiteUrl';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -42,18 +43,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const PENDING_PROFILE_KEY = 'ecolector_pending_profile_v1';
 
-  const getPublicSiteUrl = () => {
-    // Para forzar que los links de confirmación SIEMPRE apunten a Netlify (no localhost),
-    // configura VITE_PUBLIC_SITE_URL en el entorno de Netlify.
-    const raw =
-      (import.meta as any).env?.VITE_PUBLIC_SITE_URL ||
-      (import.meta as any).env?.VITE_SITE_URL ||
-      '';
-    const envUrl = String(raw || '').trim().replace(/\/+$/, '');
-    if (envUrl) return envUrl;
-    // Fallback: usa el origen actual
-    return typeof window !== 'undefined' ? window.location.origin : '';
-  };
+  const getPublicSiteUrl = () => resolvePublicSiteUrl();
 
   const savePendingProfile = (payload: any) => {
     try {
