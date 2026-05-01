@@ -5,6 +5,7 @@ import RoleSelection from '../components/auth/RoleSelection';
 import { UserRole } from '../types/user';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { sendWelcomeRegistrationEmail } from '../services/email';
 
 // ─── Helper components ───────────────────────────────────────────────────────
 
@@ -382,16 +383,22 @@ function Register() {
       name, email, password, role: selectedRole, phone, city, termsAccepted, additionalData,
     });
 
+    const fireWelcome = () => {
+      void sendWelcomeRegistrationEmail({ to_email: email.trim(), full_name: name.trim() });
+    };
+
     if (signUpError) {
       if ((signUpError as any).code === 'EMAIL_CONFIRMATION_REQUIRED') {
         setEmailConfirmationPending(true);
         notifyAdminsNewUser(name, email, selectedRole);
+        fireWelcome();
       } else {
         setError(signUpError.message || 'Error al registrar. Intenta de nuevo.');
       }
       setLoading(false);
     } else {
       notifyAdminsNewUser(name, email, selectedRole);
+      fireWelcome();
       navigate('/dashboard');
     }
   };

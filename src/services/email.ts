@@ -13,7 +13,9 @@ interface ContactFormEmailOptions {
   message: string;
 }
 
-const APP_URL = import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin;
+const APP_URL =
+  import.meta.env.VITE_PUBLIC_SITE_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : 'https://app.e-colector.com');
 
 export async function sendNewMessageEmail(options: NewMessageEmailOptions): Promise<void> {
   try {
@@ -64,5 +66,21 @@ export async function sendNearbyMaterialEmail(options: NearbyMaterialEmailOption
     });
   } catch (err) {
     console.error('[email] Error enviando notificación de material cercano:', err);
+  }
+}
+
+/** Correo de bienvenida tras registrar cuenta (Resend vía Edge Function) */
+export async function sendWelcomeRegistrationEmail(options: { to_email: string; full_name: string }): Promise<void> {
+  try {
+    await supabase.functions.invoke('send-notification-email', {
+      body: {
+        type: 'welcome_registration',
+        app_url: APP_URL,
+        to_email: options.to_email.trim(),
+        full_name: options.full_name.trim(),
+      },
+    });
+  } catch (err) {
+    console.error('[email] Error enviando correo de bienvenida:', err);
   }
 }

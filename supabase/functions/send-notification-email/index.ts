@@ -119,6 +119,55 @@ function buildContactFormEmail(name: string, email: string, subject: string, mes
     </div>`;
 }
 
+function escapeHtml(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildWelcomeRegistrationEmail(fullName: string, loginEmail: string, appUrl: string): string {
+  const name = escapeHtml(fullName || 'Usuario');
+  const mail = escapeHtml(loginEmail);
+  const loginHref = `${appUrl.replace(/\/$/, '')}/login`;
+  const rootHref = `${appUrl.replace(/\/$/, '')}/`;
+
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+      <div style="background:#059669;padding:24px 32px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">♻️ e-colector</h1>
+        <p style="color:#a7f3d0;margin:4px 0 0;font-size:14px;">Tu cuenta está lista</p>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#111827;margin-top:0;font-size:18px;">¡Bienvenido/a, ${name}!</h2>
+        <p style="color:#6b7280;font-size:15px;line-height:1.6;">
+          Creaste una cuenta en <strong style="color:#111827;">app.e-colector.com</strong>.
+          Para entrar, usa el mismo correo con el que te registraste y tu contraseña.
+        </p>
+        <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin:22px 0;">
+          <p style="margin:0 0 6px;font-size:13px;color:#6b7280;">Correo registrado</p>
+          <p style="margin:0;font-size:15px;font-weight:700;color:#059669;">${mail}</p>
+        </div>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${loginHref}"
+             style="display:inline-block;background:#059669;color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
+            Ir a iniciar sesión →
+          </a>
+        </div>
+        <p style="color:#9ca3af;font-size:13px;line-height:1.6;text-align:center;margin:0;">
+          Si el botón no funciona, copia y pega esta dirección en tu navegador:<br>
+          <a href="${loginHref}" style="color:#059669;word-break:break-all;">${escapeHtml(loginHref)}</a>
+        </p>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0;">
+        <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">
+          También puedes visitar el inicio de la app:<br>
+          <a href="${rootHref}" style="color:#059669;">${escapeHtml(rootHref)}</a>
+        </p>
+      </div>
+    </div>`;
+}
+
 function buildNearbyMaterialEmail(
   receiverName: string, title: string, address: string, category: string,
   publisherName: string, productId: string, distanceKm: number, appUrl: string
@@ -196,6 +245,27 @@ serve(async (req) => {
       const html = buildContactFormEmail(from_name, from_email, subject, message);
       const { ok, resendError } = await sendEmail(ADMIN_EMAIL, `[Contacto] ${subject}`, html);
 
+      return new Response(JSON.stringify({ success: ok, error: resendError }), {
+        status: ok ? 200 : 500,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (type === 'welcome_registration') {
+      const { to_email, full_name, app_url } = body;
+      if (!to_email || typeof to_email !== 'string') {
+        return new Response(JSON.stringify({ error: 'to_email requerido' }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+        });
+      }
+      const appUrl = typeof app_url === 'string' && app_url.trim() ? app_url.trim() : 'https://app.e-colector.com';
+      const html = buildWelcomeRegistrationEmail(full_name || '', to_email, appUrl);
+      const { ok, resendError } = await sendEmail(
+        to_email.trim(),
+        '✅ Tu cuenta en e-colector está lista — app.e-colector.com',
+        html
+      );
       return new Response(JSON.stringify({ success: ok, error: resendError }), {
         status: ok ? 200 : 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
