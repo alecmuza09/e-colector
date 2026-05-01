@@ -369,15 +369,23 @@ export default function AdminConsole() {
   const invokeEdgeFn = async <T = any>(name: string, body?: any): Promise<T> => {
     const { data, error } = await supabase.functions.invoke<T>(name, { body: body ?? {} });
     if (error) {
-      // FunctionsHttpError: el detalle está en el body de la Response
-      let msg = 'Error al llamar la función';
-      try {
-        const ctx = (error as any).context as Response | undefined;
-        if (ctx?.json) {
-          const parsed = await ctx.json();
-          msg = parsed?.error || parsed?.message || msg;
+      let msg = error.message || 'Error al llamar la función';
+      const ctx = (error as any).context as Response | undefined;
+      if (ctx && typeof ctx.clone === 'function') {
+        try {
+          const parsed = await ctx.clone().json();
+          if (parsed?.error && typeof parsed.error === 'string') msg = parsed.error;
+          else if (parsed?.message && typeof parsed.message === 'string') msg = parsed.message;
+        } catch {
+          try {
+            const text = await ctx.clone().text();
+            if (text?.trim()) msg = `${msg} [${ctx.status}]: ${text.trim().slice(0, 300)}`;
+            else msg = `${msg} [HTTP ${ctx.status}]`;
+          } catch {
+            msg = `${msg} [HTTP ${ctx.status}]`;
+          }
         }
-      } catch { /* usa el msg genérico */ }
+      }
       throw new Error(msg);
     }
     const d = data as any;
