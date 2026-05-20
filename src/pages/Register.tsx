@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { MunicipalityAddressFields } from '../components/location/MunicipalityAddressFields';
 import { supabase } from '../lib/supabase';
 import { sendWelcomeRegistrationEmail } from '../services/email';
+import { resolvePublicSiteUrl } from '../lib/publicSiteUrl';
 
 /** Primera coincidencia Nominatim (registro: avisos sin elegir sugerencia). */
 async function nominatimGeocodeFirst(query: string): Promise<{ lat: number; lng: number } | null> {
@@ -746,9 +747,24 @@ function Register() {
                 <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} className="sr-only" />
                 <span className="text-sm text-gray-600 leading-snug">
                   He leído y acepto los{' '}
-                  <Link to="/legal/terms" className="text-emerald-600 hover:underline font-medium" target="_blank">Términos de Servicio</Link>
+                  <a
+                    href={`${resolvePublicSiteUrl()}/legal/terminos`}
+                    className="text-emerald-600 hover:underline font-medium"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Términos de Servicio
+                  </a>
                   {' '}y el{' '}
-                  <Link to="/legal/privacy" className="text-emerald-600 hover:underline font-medium" target="_blank">Aviso de Privacidad</Link>.
+                  <a
+                    href={`${resolvePublicSiteUrl()}/legal/privacidad`}
+                    className="text-emerald-600 hover:underline font-medium"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Aviso de Privacidad
+                  </a>
+                  .
                 </span>
               </label>
 
