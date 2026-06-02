@@ -1,5 +1,27 @@
 import { supabase } from '../lib/supabase';
 
+/** Bucket por defecto para fotos de publicaciones (debe existir en Supabase → Storage). */
+export const PRODUCT_IMAGES_BUCKET = 'product-images';
+
+/** Mensaje claro cuando Storage no está configurado en el proyecto Supabase. */
+export function formatStorageUploadError(err: unknown): string {
+  const msg = String((err as any)?.message || err || '').toLowerCase();
+  if (msg.includes('bucket not found') || msg.includes('bucket does not exist')) {
+    return (
+      'No existe el almacén de imágenes en Supabase (bucket «product-images»). ' +
+      'Un administrador debe crearlo: en el panel de Supabase → Storage → New bucket, nombre «product-images», público, ' +
+      'o ejecutar el archivo supabase-storage-setup.sql en el SQL Editor. Luego vuelve a publicar.'
+    );
+  }
+  if (msg.includes('row-level security') || msg.includes('policy')) {
+    return (
+      'No tienes permiso para subir imágenes. Revisa las políticas RLS del bucket «product-images» ' +
+      '(archivo supabase-storage-setup.sql en el proyecto).'
+    );
+  }
+  return (err as any)?.message || 'Error al subir las imágenes. Intenta de nuevo.';
+}
+
 function getFileExt(name: string): string {
   const parts = name.split('.');
   return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : 'jpg';
@@ -15,7 +37,7 @@ export async function uploadProductImages(params: {
   productTempKey: string;
   bucket?: string;
 }): Promise<string[]> {
-  const { files, authUserId, productTempKey, bucket = 'product-images' } = params;
+  const { files, authUserId, productTempKey, bucket = PRODUCT_IMAGES_BUCKET } = params;
   const urls: string[] = [];
 
   for (const file of files) {
@@ -27,7 +49,11 @@ export async function uploadProductImages(params: {
       upsert: false,
       contentType: file.type || undefined,
     });
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      const e = new Error(formatStorageUploadError(uploadError));
+      (e as any).cause = uploadError;
+      throw e;
+    }
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     if (data?.publicUrl) {
