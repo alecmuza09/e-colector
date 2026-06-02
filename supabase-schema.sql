@@ -237,6 +237,9 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para users
+CREATE POLICY "Users can view own profile" ON public.users
+  FOR SELECT USING (auth.uid() = auth_user_id);
+
 CREATE POLICY "Users can view public profiles" ON public.users
   FOR SELECT USING (public_profile = true OR auth.uid() = auth_user_id);
 
@@ -280,12 +283,12 @@ CREATE POLICY "Admins can view all products" ON public.products
     auth.uid() IN (SELECT auth_user_id FROM public.users WHERE role = 'admin')
   );
 
--- Permitir que usuarios autenticados inserten productos
+-- Permitir que usuarios autenticados inserten productos (user_id = perfil del auth actual)
 CREATE POLICY "Authenticated users can insert products" ON public.products
   FOR INSERT 
   WITH CHECK (
     auth.role() = 'authenticated' AND
-    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+    user_id = (SELECT id FROM public.users WHERE auth_user_id = auth.uid() LIMIT 1)
   );
 
 -- Permitir que usuarios autenticados actualicen sus propios productos
@@ -293,7 +296,10 @@ CREATE POLICY "Users can update own products" ON public.products
   FOR UPDATE 
   USING (
     auth.role() = 'authenticated' AND
-    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+    user_id = (SELECT id FROM public.users WHERE auth_user_id = auth.uid() LIMIT 1)
+  )
+  WITH CHECK (
+    user_id = (SELECT id FROM public.users WHERE auth_user_id = auth.uid() LIMIT 1)
   );
 
 -- Admins pueden actualizar cualquier producto (moderación: status, verified, etc.)
@@ -308,7 +314,7 @@ CREATE POLICY "Users can delete own products" ON public.products
   FOR DELETE 
   USING (
     auth.role() = 'authenticated' AND
-    auth.uid() IN (SELECT auth_user_id FROM public.users WHERE id = user_id)
+    user_id = (SELECT id FROM public.users WHERE auth_user_id = auth.uid() LIMIT 1)
   );
 
 -- Admins pueden eliminar cualquier producto

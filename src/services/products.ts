@@ -1,6 +1,22 @@
 import { supabase } from '../lib/supabase';
 import { Product } from '../types/product';
 
+/** Mensaje legible para errores de Supabase al crear/editar publicaciones. */
+export function formatProductSaveError(err: unknown): string {
+  const msg = String((err as any)?.message || err || '').toLowerCase();
+  if (msg.includes('row-level security') || msg.includes('row level security')) {
+    return (
+      'No se pudo guardar la publicación: tu cuenta no tiene permiso en la base de datos (RLS). ' +
+      'Confirma que iniciaste sesión con el mismo correo con el que te registraste y que tu perfil existe en la tabla users. ' +
+      'Un administrador puede ejecutar supabase-fix-products-rls.sql en el SQL Editor de Supabase.'
+    );
+  }
+  if (msg.includes('perfil de usuario no encontrado') || msg.includes('usuario no autenticado')) {
+    return (err as any)?.message || 'Debes iniciar sesión y tener un perfil completo antes de publicar.';
+  }
+  return (err as any)?.message || 'Error al guardar la publicación. Intenta de nuevo.';
+}
+
 export interface ProductFromDB {
   id: string;
   user_id: string;

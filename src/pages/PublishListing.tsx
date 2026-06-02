@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, AlertCircle, CheckCircle, Loader, MapPin, Pencil } from 'lucide-react';
-import { createProduct, updateProduct } from '../services/products';
+import { createProduct, formatProductSaveError, updateProduct } from '../services/products';
 import { useAuth } from '../context/AuthContext';
 import { MUNICIPALITY_NAMES, getMunicipalityByName, getRandomCoordinates } from '../config/municipalities';
-import { uploadProductImages } from '../services/storage';
+import { formatStorageUploadError, uploadProductImages } from '../services/storage';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -240,7 +240,24 @@ const PublishListing = () => {
 
   const handleFilesChange = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
-    setFiles(picked);
+    if (picked.length === 0) return;
+    setFiles((prev) => {
+      const merged = [...prev, ...picked];
+      const seen = new Set<string>();
+      const unique = merged.filter((f) => {
+        const key = `${f.name}-${f.size}-${f.lastModified}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return unique.slice(0, 10);
+    });
+    // Permite volver a abrir el selector y añadir más fotos sin reemplazar las anteriores
+    e.target.value = '';
+  };
+
+  const removeNewPhoto = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const MapPicker = () => {
@@ -465,7 +482,12 @@ const PublishListing = () => {
     } catch (error: any) {
       console.error('Error al guardar en Supabase:', error);
       setSubmissionStatus('error');
-      setErrors({ general: error.message || 'Error al guardar la publicación. Inténtalo de nuevo.' });
+      setErrors({
+        general:
+          formatStorageUploadError(error) ||
+          formatProductSaveError(error) ||
+          'Error al guardar la publicación. Inténtalo de nuevo.',
+      });
       setIsSubmitting(false);
     }
   };
@@ -751,8 +773,18 @@ const PublishListing = () => {
                       <>
                         <p className="text-xs text-gray-500 mb-2 font-medium">Nuevas fotos ({previewUrls.length})</p>
                         <div className="grid grid-cols-4 gap-2">
-                          {previewUrls.slice(0, 8).map((src, idx) => (
-                            <img key={`p-${idx}`} src={src} className="h-20 w-full object-cover rounded-lg border border-emerald-300" alt="" />
+                          {previewUrls.slice(0, 10).map((src, idx) => (
+                            <div key={`p-${idx}`} className="relative group">
+                              <img src={src} className="h-20 w-full object-cover rounded-lg border border-emerald-300" alt="" />
+                              <button
+                                type="button"
+                                onClick={() => removeNewPhoto(idx)}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold shadow opacity-90 hover:bg-red-600"
+                                aria-label="Quitar foto"
+                              >
+                                ×
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </>
