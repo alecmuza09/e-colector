@@ -1,25 +1,22 @@
 -- ============================================
--- SUPABASE STORAGE SETUP (E-COLECTOR)
--- Bucket: product-images
+-- FIX: subir fotos a product-images (Storage RLS)
+-- Error: "No tienes permiso para subir imágenes" / row-level security
+-- Ejecutar en Supabase → SQL Editor (todo el script)
 -- ============================================
--- Ejecuta en Supabase SQL Editor
 
--- 1) Crear bucket público para imágenes
+-- Asegurar bucket público
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)
 on conflict (id) do update set public = true;
 
--- 2) Policies en storage.objects
--- Nota: storage.objects ya tiene RLS habilitado en Supabase.
-
--- Lectura pública (para que cualquiera vea imágenes en listados/mapa)
+-- Lectura pública
 drop policy if exists "Public can read product images" on storage.objects;
 create policy "Public can read product images"
 on storage.objects for select
 using (bucket_id = 'product-images');
 
--- Subida: carpeta raíz = auth.uid() (ver src/services/storage.ts)
--- No usar owner = auth.uid() en INSERT: el owner se asigna tras el insert y rompe RLS.
+-- INSERT: NO usar owner = auth.uid() en WITH CHECK (owner se asigna después del insert).
+-- La app sube a: {auth_user_id}/{productKey}/{uuid}.ext
 drop policy if exists "Authenticated can upload product images" on storage.objects;
 create policy "Authenticated can upload product images"
 on storage.objects for insert
@@ -29,19 +26,24 @@ with check (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
+-- Variante permisiva si la anterior falla por formato de ruta (solo usuarios logueados al bucket)
 drop policy if exists "Authenticated can upload product images fallback" on storage.objects;
 create policy "Authenticated can upload product images fallback"
 on storage.objects for insert
 to authenticated
 with check (bucket_id = 'product-images');
 
+-- UPDATE / DELETE: solo archivos en tu carpeta o que seas owner
 drop policy if exists "Owners can update product images" on storage.objects;
 create policy "Owners can update product images"
 on storage.objects for update
 to authenticated
 using (
   bucket_id = 'product-images'
-  and (owner = auth.uid() or (storage.foldername(name))[1] = auth.uid()::text)
+  and (
+    owner = auth.uid()
+    or (storage.foldername(name))[1] = auth.uid()::text
+  )
 )
 with check (bucket_id = 'product-images');
 
@@ -51,10 +53,13 @@ on storage.objects for delete
 to authenticated
 using (
   bucket_id = 'product-images'
-  and (owner = auth.uid() or (storage.foldername(name))[1] = auth.uid()::text)
+  and (
+    owner = auth.uid()
+    or (storage.foldername(name))[1] = auth.uid()::text
+  )
 );
 
 do $$
 begin
-  raise notice 'Storage bucket y policies para product-images aplicadas.';
+  raise notice 'Storage RLS product-images actualizado. Vuelve a publicar con fotos.';
 end $$;

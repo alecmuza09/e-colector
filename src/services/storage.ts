@@ -13,10 +13,12 @@ export function formatStorageUploadError(err: unknown): string {
       'o ejecutar el archivo supabase-storage-setup.sql en el SQL Editor. Luego vuelve a publicar.'
     );
   }
-  if (msg.includes('row-level security') || msg.includes('policy')) {
+  if (msg.includes('row-level security') || msg.includes('policy') || msg.includes('permission')) {
     return (
-      'No tienes permiso para subir imágenes. Revisa las políticas RLS del bucket «product-images» ' +
-      '(archivo supabase-storage-setup.sql en el proyecto).'
+      'No tienes permiso para subir imágenes al bucket «product-images». ' +
+      'Un administrador debe ejecutar supabase-fix-storage-rls.sql en el SQL Editor de Supabase ' +
+      '(las políticas antiguas con owner = auth.uid() en INSERT suelen causar este error). ' +
+      `Detalle: ${(err as any)?.message || 'RLS'}`
     );
   }
   return (err as any)?.message || 'Error al subir las imágenes. Intenta de nuevo.';
